@@ -14,6 +14,7 @@ data class Movie(
     val year: Int = 0,
     val posterUrl: String = "",
     val isHero: Boolean = false,
+    val language: String = "",
     val timestamp: Long = 0L,
     val seasons: List<Season>? = null
 ) {

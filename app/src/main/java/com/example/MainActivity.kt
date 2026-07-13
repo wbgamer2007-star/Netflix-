@@ -14,9 +14,12 @@ import androidx.navigation.compose.rememberNavController
 import com.example.ui.MainScreen
 import com.example.ui.SeriesDetailScreen
 import com.example.ui.VideoPlayerScreen
+import com.example.ui.ProfileSetupScreen
 import com.example.ui.theme.MyApplicationTheme
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,8 +32,23 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val navController = rememberNavController()
+                    val context = LocalContext.current
+                    val sharedPrefs = remember { context.getSharedPreferences("user_profile_prefs", MODE_PRIVATE) }
+                    val isProfileCreated = sharedPrefs.getBoolean("profile_created", false)
 
-                    NavHost(navController = navController, startDestination = "main") {
+                    NavHost(
+                        navController = navController, 
+                        startDestination = if (isProfileCreated) "main" else "profile_setup"
+                    ) {
+                        composable("profile_setup") {
+                            ProfileSetupScreen(
+                                onProfileCreated = {
+                                    navController.navigate("main") {
+                                        popUpTo("profile_setup") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
                         composable("main") {
                             MainScreen(
                                 onNavigateToPlayer = { movieId, videoUrl ->

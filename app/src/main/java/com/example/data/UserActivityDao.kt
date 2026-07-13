@@ -22,6 +22,12 @@ interface UserActivityDao {
 
     @Query("UPDATE user_activity SET isLiked = :isLiked WHERE movieId = :id")
     suspend fun updateLiked(id: String, isLiked: Boolean)
+
+    @Query("UPDATE user_activity SET isSaved = :isSaved WHERE movieId = :id")
+    suspend fun updateSaved(id: String, isSaved: Boolean)
+
+    @Query("DELETE FROM user_activity WHERE movieId = :id")
+    suspend fun deleteActivity(id: String)
     
     @Query("SELECT * FROM user_activity ORDER BY lastWatched DESC")
     fun getAllActivities(): Flow<List<UserActivity>>
