@@ -42,12 +42,12 @@
                 <span class="font-bold text-xl tracking-tighter text-white">NEOFLIX ADMIN</span>
             </div>
             <div class="flex gap-4">
-                <button @click="currentTab = 'content'" :class="{'text-orange-500': currentTab === 'content', 'text-slate-400': currentTab !== 'content'}" class="font-bold tracking-wider uppercase text-sm">Content</button>
+                <button @click="currentTab = 'content'" :class="{'text-orange-500': currentTab === 'add', 'text-slate-400': currentTab !== 'content'}" class="font-bold tracking-wider uppercase text-sm">Content</button>
                 <button @click="currentTab = 'settings'" :class="{'text-orange-500': currentTab === 'settings', 'text-slate-400': currentTab !== 'settings'}" class="font-bold tracking-wider uppercase text-sm">Settings</button>
             </div>
         </header>
 
-        <main class="flex-1 overflow-hidden p-6 relative z-10 flex flex-col gap-6" v-if="currentTab === 'content'">
+        <main class="flex-1 overflow-hidden p-6 relative z-10 flex flex-col gap-6" v-if="currentTab === 'add'">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
                 <!-- Left: Form -->
                 <div class="glass-panel p-6 rounded-3xl col-span-1 h-full overflow-y-auto custom-scrollbar flex flex-col gap-4">
@@ -199,7 +199,7 @@
 
         createApp({
             setup() {
-                const currentTab = ref('content');
+                const currentTab = ref('add');
                 const imgbbApiKey = ref(localStorage.getItem('imgbbApiKey') || '');
                 const items = ref({});
                 const uploadingImage = ref(false);
@@ -328,11 +328,13 @@
                             form.value = defaultForm();
                             editingKey.value = null;
                             document.getElementById('fileUpload').value = '';
+                            currentTab.value = 'library';
                         }).catch(err => alert("Error updating: " + err));
                     } else {
                         contentRef.push(dataToSave).then(() => {
                             form.value = defaultForm();
                             document.getElementById('fileUpload').value = '';
+                            currentTab.value = 'library';
                         }).catch(err => alert("Error saving: " + err));
                     }
                 };
@@ -340,6 +342,7 @@
                 const editContent = (key, item) => {
                     editingKey.value = key;
                     form.value = { ...defaultForm(), ...JSON.parse(JSON.stringify(item)) };
+                    currentTab.value = 'add';
                 };
                 
                 const cancelEdit = () => {
@@ -377,5 +380,22 @@
             }
         }).mount('#app');
     </script>
+
+        <!-- Bottom Nav for Mobile -->
+        <div class="md:hidden fixed bottom-0 left-0 right-0 bg-[#0a0a0f]/90 backdrop-blur-xl border-t border-white/10 flex justify-around p-4 z-50">
+            <button @click="currentTab = 'add'" :class="currentTab === 'add' ? 'text-orange-500' : 'text-slate-400'" class="flex flex-col items-center">
+                <span class="material-symbols-outlined mb-1">add_circle</span>
+                <span class="text-[10px] font-bold">Add</span>
+            </button>
+            <button @click="currentTab = 'library'" :class="currentTab === 'library' ? 'text-orange-500' : 'text-slate-400'" class="flex flex-col items-center">
+                <span class="material-symbols-outlined mb-1">video_library</span>
+                <span class="text-[10px] font-bold">Library</span>
+            </button>
+            <button @click="currentTab = 'settings'" :class="currentTab === 'settings' ? 'text-orange-500' : 'text-slate-400'" class="flex flex-col items-center">
+                <span class="material-symbols-outlined mb-1">settings</span>
+                <span class="text-[10px] font-bold">Settings</span>
+            </button>
+        </div>
+    </div>
 </body>
 </html>

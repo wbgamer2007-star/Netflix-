@@ -65,7 +65,11 @@ class MainActivity : ComponentActivity() {
                             VideoPlayerScreen(
                                 movieId = movieId,
                                 videoUrl = videoUrl,
-                                onNavigateUp = { navController.navigateUp() }
+                                onNavigateUp = { navController.navigateUp() },
+                                onNavigateToMovie = { id, url ->
+                                    val encoded = android.util.Base64.encodeToString(url.toByteArray(StandardCharsets.UTF_8), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+                                    navController.navigate("player/$id/$encoded")
+                                }
                             )
                         }
                     }
