@@ -195,104 +195,94 @@ fun VideoPlayerScreen(
                 .fillMaxWidth()
                 .then(if (isFullscreen) Modifier.fillMaxHeight() else Modifier.aspectRatio(16f / 9f))
                 .background(Color.Black)
-                .statusBarsPadding() // Ensures video player doesn't go under status bar
+                .statusBarsPadding()
         ) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
-                    PlayerView(ctx).apply {
+                    androidx.media3.ui.PlayerView(ctx).apply {
                         player = exoPlayer
-                        useController = true
-                        setShowSubtitleButton(true) // Enable subtitles
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        layoutParams = FrameLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
+                        useController = false
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        layoutParams = android.widget.FrameLayout.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
                         )
                         keepScreenOn = true
                         
-                        setFullscreenButtonClickListener {
-                            toggleFullscreen()
-                        }
-                        
-                        if (activity != null) {
-                            val gestureDetector = GestureDetector(ctx, GestureHelper(
-                                context = ctx,
-                                activity = activity,
-                                onSeek = {},
-                                onVolumeChange = { vol ->
-                                    volumeLevel = vol
-                                    showVolumeIndicator = true
-                                },
-                                onBrightnessChange = { bright ->
-                                    brightnessLevel = bright
-                                    showBrightnessIndicator = true
-                                },
-                                onSingleTap = {
-                                    if (isControllerFullyVisible) {
-                                        hideController()
+                        val gestureDetector = android.view.GestureDetector(ctx, object : android.view.GestureDetector.SimpleOnGestureListener() {
+                            override fun onScroll(e1: android.view.MotionEvent?, e2: android.view.MotionEvent, distanceX: Float, distanceY: Float): Boolean {
+                                if (e1 == null) return false
+                                val deltaX = e2.x - e1.x
+                                val deltaY = e2.y - e1.y
+                                
+                                if (kotlin.math.abs(deltaY) > kotlin.math.abs(deltaX)) {
+                                    if (e1.x < width / 2) {
+                                        val layoutParams = activity?.window?.attributes
+                                        layoutParams?.screenBrightness = ((layoutParams?.screenBrightness ?: 0.5f) + (deltaY / height)).coerceIn(0f, 1f)
+                                        activity?.window?.attributes = layoutParams
+                                        brightnessLevel = layoutParams?.screenBrightness ?: 0.5f
+                                        showBrightnessIndicator = true
                                     } else {
-                                        showController()
+                                        val audioManager = ctx.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                                        val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                                        val currentVol = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+                                        val newVolume = (currentVol + (deltaY / height) * maxVolume).toInt().coerceIn(0, maxVolume)
+                                        audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, newVolume, 0)
+                                        volumeLevel = newVolume.toFloat() / maxVolume
+                                        showVolumeIndicator = true
                                     }
                                 }
-                            ))
-                            
-                            setOnTouchListener { _, event ->
-                                gestureDetector.onTouchEvent(event)
-                                true 
+                                return true
                             }
+                        })
+                        
+                        setOnTouchListener { _, event ->
+                            gestureDetector.onTouchEvent(event)
+                            false
                         }
                     }
                 }
             )
-            
-            if (!isFullscreen) {
-                IconButton(
-                    onClick = onNavigateUp,
-                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color.White
+
+            H5PlayerControls(
+                player = exoPlayer,
+                title = movie?.title ?: "Video",
+                onBack = {
+                    if (isFullscreen) {
+                        activity?.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        isFullscreen = false
+                    } else {
+                        onNavigateUp()
+                    }
+                },
+                onShowSettings = {
+                    val builder = androidx.media3.ui.TrackSelectionDialogBuilder(
+                        context, "Tracks", exoPlayer, androidx.media3.common.C.TRACK_TYPE_AUDIO
                     )
-                }
-            }
-            
+                    builder.build().show()
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
             if (isBuffering) {
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center),
-                    color = AccentOrange
+                    color = com.example.ui.theme.AccentOrange
                 )
             }
-            
-            // Volume Indicator
-            androidx.compose.animation.AnimatedVisibility(
-                visible = showVolumeIndicator,
-                enter = fadeIn(),
-                exit = fadeOut(),
+
+            VolumeIndicator(
+                show = showVolumeIndicator,
+                volumeLevel = volumeLevel,
                 modifier = Modifier.align(Alignment.CenterEnd).padding(32.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.background(Color.Black.copy(alpha=0.6f), shape = RoundedCornerShape(8.dp)).padding(16.dp)) {
-                    Icon(Icons.Filled.VolumeUp, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("${(volumeLevel * 100).toInt()}%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-            }
+            )
             
-            // Brightness Indicator
-            androidx.compose.animation.AnimatedVisibility(
-                visible = showBrightnessIndicator,
-                enter = fadeIn(),
-                exit = fadeOut(),
+            BrightnessIndicator(
+                show = showBrightnessIndicator,
+                brightnessLevel = brightnessLevel,
                 modifier = Modifier.align(Alignment.CenterStart).padding(32.dp)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.background(Color.Black.copy(alpha=0.6f), shape = RoundedCornerShape(8.dp)).padding(16.dp)) {
-                    Icon(Icons.Filled.BrightnessMedium, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("${(brightnessLevel * 100).toInt()}%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                }
-            }
+            )
         }
 
         // Details Section

@@ -219,6 +219,25 @@
 
                 const form = ref(defaultForm());
 
+                
+                const groupedItems = computed(() => {
+                    const groups = {};
+                    Object.entries(items.value).forEach(([key, item]) => {
+                        let mainCat = 'Uncategorized';
+                        if (item.category) {
+                            mainCat = item.category.split(',')[0].trim();
+                        }
+                        if (!groups[mainCat]) groups[mainCat] = [];
+                        groups[mainCat].push({ ...item, key });
+                    });
+                    
+                    // Sort keys
+                    return Object.keys(groups).sort().reduce((acc, key) => {
+                        acc[key] = groups[key];
+                        return acc;
+                    }, {});
+                });
+
                 const allCategories = computed(() => {
                     const cats = new Set(['Action', 'Sci-Fi', 'Comedy', 'Drama', 'Horror']);
                     Object.values(items.value).forEach(i => {
@@ -361,6 +380,7 @@
                     imgbbApiKey,
                     items,
                     form,
+                    groupedItems,
                     allCategories,
                     hasCategory,
                     toggleCategory,

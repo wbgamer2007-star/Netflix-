@@ -123,6 +123,9 @@ fun MainScreen(
                 1 -> {
                     HistoryScreen(onNavigateToPlayer, onNavigateToSeries)
                 }
+                2 -> {
+                    ProfileScreen(onNavigateToPlayer, onNavigateToSeries)
+                }
             }
         }
     }

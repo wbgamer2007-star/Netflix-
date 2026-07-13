@@ -22,7 +22,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             repository.allActivities.collect { activities ->
                 val combined = activities.mapNotNull { activity ->
-                    ContentRepository.contentList.find { it.id == activity.movieId }?.let { movie ->
+                    ContentRepository.contentList.find { it.id == activity.movieId || activity.movieId.startsWith(it.id + "_") }?.let { movie ->
                         movie to activity
                     }
                 }
