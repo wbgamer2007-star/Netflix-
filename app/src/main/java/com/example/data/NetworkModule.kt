@@ -5,8 +5,8 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.GET
 
 interface FirebaseApiService {
-    @GET("movies.json")
-    suspend fun getMovies(): Map<String, Movie>?
+    @GET("content.json")
+    suspend fun getContent(): Map<String, Movie>?
 }
 
 object NetworkModule {

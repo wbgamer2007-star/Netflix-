@@ -9,6 +9,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -36,6 +40,7 @@ import com.example.ui.theme.*
 @Composable
 fun MainScreen(
     onNavigateToPlayer: (String) -> Unit,
+    onNavigateToSeries: (String) -> Unit,
     viewModel: MoviesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -45,9 +50,12 @@ fun MainScreen(
         topBar = {
             NeoflixHeader()
         },
+        bottomBar = {
+            NeoflixBottomNav()
+        },
         containerColor = BackgroundDark,
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             // Liquid background
             Box(
                 modifier = Modifier
@@ -87,9 +95,7 @@ fun MainScreen(
                 }
                 is MoviesUiState.Success -> {
                     LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
+                        modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 32.dp)
                     ) {
                         item {
@@ -98,19 +104,63 @@ fun MainScreen(
 
                         if (searchQuery.isBlank() && state.heroMovie != null) {
                             item {
-                                HeroBanner(state.heroMovie, onNavigateToPlayer)
+                                HeroBanner(state.heroMovie, onNavigateToPlayer, onNavigateToSeries)
                             }
                         }
 
                         state.categories.forEach { (category, movies) ->
                             item {
-                                CategoryRow(category, movies, onNavigateToPlayer)
+                                CategoryRow(category, movies, onNavigateToPlayer, onNavigateToSeries)
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun NeoflixBottomNav() {
+    NavigationBar(
+        containerColor = BackgroundDark,
+        contentColor = Color.White,
+        modifier = Modifier.border(1.dp, GlassBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+    ) {
+        NavigationBarItem(
+            selected = true,
+            onClick = { },
+            icon = { Icon(Icons.Default.Home, "Home") },
+            label = { Text("Home", fontSize = 10.sp) },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = AccentOrange,
+                selectedTextColor = AccentOrange,
+                unselectedIconColor = TextSlate400,
+                unselectedTextColor = TextSlate400,
+                indicatorColor = Color.Transparent
+            )
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = { },
+            icon = { Icon(Icons.Default.Explore, "Explore") },
+            label = { Text("Explore", fontSize = 10.sp) },
+            colors = NavigationBarItemDefaults.colors(unselectedIconColor = TextSlate400, unselectedTextColor = TextSlate400, indicatorColor = Color.Transparent)
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = { },
+            icon = { Icon(Icons.Default.List, "My List") },
+            label = { Text("My List", fontSize = 10.sp) },
+            colors = NavigationBarItemDefaults.colors(unselectedIconColor = TextSlate400, unselectedTextColor = TextSlate400, indicatorColor = Color.Transparent)
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = { },
+            icon = { Icon(Icons.Default.Person, "Profile") },
+            label = { Text("Profile", fontSize = 10.sp) },
+            colors = NavigationBarItemDefaults.colors(unselectedIconColor = TextSlate400, unselectedTextColor = TextSlate400, indicatorColor = Color.Transparent)
+        )
     }
 }
 
@@ -135,7 +185,7 @@ fun NeoflixHeader() {
                     modifier = Modifier
                         .size(16.dp)
                         .background(Color.White)
-                ) // rotate visually if needed
+                ) 
             }
             Text(
                 text = "NEOFLIX",
@@ -198,7 +248,11 @@ fun SearchBarCustom(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
-fun HeroBanner(movie: Movie, onPlay: (String) -> Unit) {
+fun HeroBanner(movie: Movie, onPlay: (String) -> Unit, onNavigateToSeries: (String) -> Unit) {
+    val action = {
+        if (movie.type == "series") onNavigateToSeries(movie.id) else onPlay(movie.videoUrl)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -206,7 +260,7 @@ fun HeroBanner(movie: Movie, onPlay: (String) -> Unit) {
             .padding(horizontal = 24.dp, vertical = 16.dp)
             .clip(RoundedCornerShape(24.dp))
             .border(1.dp, GlassBorder, RoundedCornerShape(24.dp))
-            .clickable { onPlay(movie.videoUrl) }
+            .clickable { action() }
     ) {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -288,7 +342,7 @@ fun HeroBanner(movie: Movie, onPlay: (String) -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
-                    onClick = { onPlay(movie.videoUrl) },
+                    onClick = action,
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -298,7 +352,7 @@ fun HeroBanner(movie: Movie, onPlay: (String) -> Unit) {
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = "Play")
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Play Now", fontWeight = FontWeight.Bold)
+                    Text(if (movie.type == "series") "View Episodes" else "Play Now", fontWeight = FontWeight.Bold)
                 }
                 
                 Box(
@@ -318,7 +372,7 @@ fun HeroBanner(movie: Movie, onPlay: (String) -> Unit) {
 }
 
 @Composable
-fun CategoryRow(category: String, movies: List<Movie>, onPlay: (String) -> Unit) {
+fun CategoryRow(category: String, movies: List<Movie>, onPlay: (String) -> Unit, onNavigateToSeries: (String) -> Unit) {
     Column(modifier = Modifier.padding(vertical = 12.dp)) {
         Row(
             modifier = Modifier
@@ -347,18 +401,22 @@ fun CategoryRow(category: String, movies: List<Movie>, onPlay: (String) -> Unit)
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(movies) { movie ->
-                MovieCard(movie, onPlay)
+                MovieCard(movie, onPlay, onNavigateToSeries)
             }
         }
     }
 }
 
 @Composable
-fun MovieCard(movie: Movie, onPlay: (String) -> Unit) {
+fun MovieCard(movie: Movie, onPlay: (String) -> Unit, onNavigateToSeries: (String) -> Unit) {
+    val action = {
+        if (movie.type == "series") onNavigateToSeries(movie.id) else onPlay(movie.videoUrl)
+    }
+    
     Column(
         modifier = Modifier
             .width(140.dp)
-            .clickable { onPlay(movie.videoUrl) },
+            .clickable { action() },
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Box(

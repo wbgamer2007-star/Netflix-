@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.ui.MainScreen
+import com.example.ui.SeriesDetailScreen
 import com.example.ui.VideoPlayerScreen
 import com.example.ui.theme.MyApplicationTheme
 import java.net.URLEncoder
@@ -33,6 +34,20 @@ class MainActivity : ComponentActivity() {
                         composable("main") {
                             MainScreen(
                                 onNavigateToPlayer = { videoUrl ->
+                                    val encodedUrl = URLEncoder.encode(videoUrl, StandardCharsets.UTF_8.toString())
+                                    navController.navigate("player/$encodedUrl")
+                                },
+                                onNavigateToSeries = { seriesId ->
+                                    navController.navigate("series/$seriesId")
+                                }
+                            )
+                        }
+                        composable("series/{seriesId}") { backStackEntry ->
+                            val seriesId = backStackEntry.arguments?.getString("seriesId") ?: ""
+                            SeriesDetailScreen(
+                                seriesId = seriesId,
+                                onNavigateUp = { navController.navigateUp() },
+                                onPlayEpisode = { videoUrl ->
                                     val encodedUrl = URLEncoder.encode(videoUrl, StandardCharsets.UTF_8.toString())
                                     navController.navigate("player/$encodedUrl")
                                 }

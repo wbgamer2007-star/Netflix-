@@ -2,6 +2,7 @@ package com.example.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.ContentRepository
 import com.example.data.Movie
 import com.example.data.NetworkModule
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,9 +36,10 @@ class MoviesViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = MoviesUiState.Loading
             try {
-                val response = NetworkModule.apiService.getMovies()
+                val response = NetworkModule.apiService.getContent()
                 if (response != null) {
-                    val moviesList = response.values.toList().sortedByDescending { it.timestamp }
+                    val moviesList = response.map { (key, value) -> value.apply { id = key } }.sortedByDescending { it.timestamp }
+                    ContentRepository.contentList = moviesList
                     allMovies = moviesList
                     processMovies(moviesList)
                 } else {
