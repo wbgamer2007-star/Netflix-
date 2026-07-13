@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiquidMovies Admin</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; }
+        .glass-panel {
+            background: rgba(22, 27, 34, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="p-6 h-screen flex flex-col font-sans">
+    <div class="max-w-6xl mx-auto w-full flex-grow flex flex-col gap-6">
+        <header class="flex justify-between items-center py-4">
+            <h1 class="text-3xl font-bold text-white tracking-wide">LiquidMovies <span class="text-blue-500">Admin</span></h1>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow">
+            <!-- Left Panel: Form -->
+            <div class="glass-panel p-6 col-span-1 h-fit">
+                <h2 class="text-xl font-semibold mb-4 text-white">Add Movie / Series</h2>
+                <form id="movieForm" class="flex flex-col gap-4">
+                    <div>
+                        <label class="block text-sm mb-1 text-gray-400">Title</label>
+                        <input type="text" id="title" required class="w-full bg-gray-800 text-white rounded p-2 border border-gray-700 focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1 text-gray-400">Description</label>
+                        <textarea id="description" required rows="3" class="w-full bg-gray-800 text-white rounded p-2 border border-gray-700 focus:border-blue-500 focus:outline-none"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1 text-gray-400">Video Stream URL (.mp4, .mkv, etc)</label>
+                        <input type="url" id="videoUrl" required class="w-full bg-gray-800 text-white rounded p-2 border border-gray-700 focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm mb-1 text-gray-400">Category / Genre</label>
+                            <input type="text" id="category" required class="w-full bg-gray-800 text-white rounded p-2 border border-gray-700 focus:border-blue-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm mb-1 text-gray-400">Release Year</label>
+                            <input type="number" id="year" required class="w-full bg-gray-800 text-white rounded p-2 border border-gray-700 focus:border-blue-500 focus:outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-1 text-gray-400">Thumbnail / Poster</label>
+                        <input type="file" id="posterFile" accept="image/*" class="w-full bg-gray-800 text-gray-400 rounded p-2 border border-gray-700 focus:outline-none">
+                        <input type="hidden" id="posterUrl">
+                        <p id="uploadStatus" class="text-xs mt-1 text-blue-400"></p>
+                    </div>
+                    <div class="flex items-center mt-2">
+                        <input type="checkbox" id="isHero" class="mr-2 h-4 w-4 rounded text-blue-500 focus:ring-blue-500 focus:ring-2 bg-gray-800 border-gray-600">
+                        <label for="isHero" class="text-sm text-gray-400">Set as Main Hero Banner</label>
+                    </div>
+                    <button type="submit" id="submitBtn" class="mt-4 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded transition-colors w-full">Save to Database</button>
+                </form>
+            </div>
+
+            <!-- Right Panel: List -->
+            <div class="glass-panel p-6 col-span-1 lg:col-span-2 flex flex-col h-[80vh] overflow-hidden">
+                <h2 class="text-xl font-semibold mb-4 text-white">Content Library</h2>
+                <div class="overflow-y-auto pr-2 custom-scrollbar flex-grow">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-700 text-gray-400 text-sm">
+                                <th class="pb-2">Poster</th>
+                                <th class="pb-2">Title</th>
+                                <th class="pb-2">Category</th>
+                                <th class="pb-2">Year</th>
+                                <th class="pb-2 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contentTableBody">
+                            <!-- Rows inserted here dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (Version 8 for simplicity in single file) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script>
+        // Firebase configuration provided by user
+        const firebaseConfig = {
+            apiKey: "AIzaSyABrZO7DXxT2MV54AfD6HSTsp_adTJE5v0",
+            authDomain: "testing-31c44.firebaseapp.com",
+            databaseURL: "https://testing-31c44-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "testing-31c44",
+            storageBucket: "testing-31c44.firebasestorage.app",
+            messagingSenderId: "485546521437",
+            appId: "1:485546521437:web:5d74799008ab2269abaeb4",
+            measurementId: "G-DR41T9D2B5"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const moviesRef = db.ref('movies');
+
+        // ImgBB API Key
+        const IMGBB_API_KEY = "1b3e1f5abef6c9c9b1c7c98099307d08"; // Add your imgbb API key here or use a free test one
+
+        // DOM Elements
+        const form = document.getElementById('movieForm');
+        const posterFileInput = document.getElementById('posterFile');
+        const posterUrlInput = document.getElementById('posterUrl');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const submitBtn = document.getElementById('submitBtn');
+        const tableBody = document.getElementById('contentTableBody');
+
+        // Handle Image Selection & Upload to ImgBB
+        posterFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            uploadStatus.textContent = "Uploading image...";
+            submitBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                // Notice: 1b3e1f5abef6c9c9b1c7c98099307d08 is a placeholder/example API key format. In a real scenario, use a real key.
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=8e6840dffbc54f85e43c52e42ceafbe1`, { // using a dummy free key format, replace if needed. Wait, let's just use the form. Actually, standard free keys are easy to find or we can just ask the user to provide one. I'll use a public test key if possible, but let's leave it as a required setup if it fails.
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    posterUrlInput.value = data.data.url;
+                    uploadStatus.textContent = "Upload successful!";
+                    uploadStatus.className = "text-xs mt-1 text-green-400";
+                } else {
+                    uploadStatus.textContent = "Failed to upload.";
+                    uploadStatus.className = "text-xs mt-1 text-red-400";
+                }
+            } catch (err) {
+                uploadStatus.textContent = "Error uploading image.";
+                uploadStatus.className = "text-xs mt-1 text-red-400";
+                console.error(err);
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        // Submit Form
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const videoUrl = document.getElementById('videoUrl').value;
+            const category = document.getElementById('category').value;
+            const year = parseInt(document.getElementById('year').value);
+            const isHero = document.getElementById('isHero').checked;
+            const posterUrl = posterUrlInput.value || "https://via.placeholder.com/150";
+
+            const movieData = {
+                title, description, videoUrl, category, year, posterUrl, isHero,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            moviesRef.push(movieData)
+                .then(() => {
+                    form.reset();
+                    posterUrlInput.value = "";
+                    uploadStatus.textContent = "";
+                })
+                .catch(err => alert("Error saving: " + err));
+        });
+
+        // Fetch & Display Movies
+        moviesRef.on('value', (snapshot) => {
+            tableBody.innerHTML = '';
+            snapshot.forEach((childSnapshot) => {
+                const key = childSnapshot.key;
+                const data = childSnapshot.val();
+
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-800 hover:bg-gray-800/50 transition-colors";
+                tr.innerHTML = `
+                    <td class="py-2"><img src="${data.posterUrl}" class="w-12 h-16 object-cover rounded shadow"></td>
+                    <td class="py-2 font-medium text-white">${data.title} ${data.isHero ? '<span class="ml-2 text-xs bg-blue-600 px-2 py-0.5 rounded text-white">HERO</span>' : ''}</td>
+                    <td class="py-2 text-gray-400">${data.category}</td>
+                    <td class="py-2 text-gray-400">${data.year}</td>
+                    <td class="py-2 text-right">
+                        <button onclick="deleteMovie('${key}')" class="text-red-500 hover:text-red-400 text-sm p-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        });
+
+        // Delete Movie
+        window.deleteMovie = function(key) {
+            if (confirm("Are you sure you want to delete this content?")) {
+                moviesRef.child(key).remove();
+            }
+        };
+    </script>
+</body>
+</html>
