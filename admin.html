@@ -51,7 +51,11 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
                 <!-- Left: Form -->
                 <div class="glass-panel p-6 rounded-3xl col-span-1 h-full overflow-y-auto custom-scrollbar flex flex-col gap-4">
-                    <h2 class="text-xl font-bold text-white mb-2">Add New Content</h2>
+                    <h2 class="text-xl font-bold text-white mb-2">{{ editingKey ? 'Edit Content' : 'Add New Content' }}</h2>
+                    <div class="flex justify-between items-center mb-2" v-if="editingKey">
+                        <span class="text-xs text-orange-400 font-bold">Editing existing item</span>
+                        <button @click="cancelEdit" class="text-xs text-slate-400 hover:text-white underline">Cancel</button>
+                    </div>
                     
                     <div class="flex gap-2 p-1 bg-black/40 rounded-xl">
                         <button @click="form.type = 'movie'" :class="{'bg-orange-500 text-white shadow': form.type === 'movie', 'text-slate-400': form.type !== 'movie'}" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all">Movie</button>
@@ -69,14 +73,18 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Category</label>
-                            <input type="text" v-model="form.category" placeholder="e.g. Sci-Fi" class="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 focus:border-orange-500 focus:outline-none" list="categories-list">
-                            <datalist id="categories-list">
-                                <option v-for="cat in categories" :value="cat"></option>
-                            </datalist>
+                        <div class="col-span-2">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Categories (Comma separated)</label>
+                            <input type="text" v-model="form.category" placeholder="e.g. Sci-Fi, Action" class="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 focus:border-orange-500 focus:outline-none mb-2">
+                            <div class="flex flex-wrap gap-2">
+                                <button v-for="cat in allCategories" :key="cat" @click.prevent="toggleCategory(cat)" 
+                                        :class="{'bg-orange-500 text-white border-orange-500': hasCategory(cat), 'bg-transparent text-slate-400 border-white/20': !hasCategory(cat)}"
+                                        class="text-xs px-2 py-1 border rounded-lg hover:border-orange-500 transition-colors">
+                                    {{ cat }}
+                                </button>
+                            </div>
                         </div>
-                        <div>
+                        <div class="col-span-2">
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Year</label>
                             <input type="number" v-model="form.year" class="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 focus:border-orange-500 focus:outline-none">
                         </div>
@@ -128,7 +136,7 @@
                         <label for="isHero" class="text-sm font-bold text-slate-300">Set as Hero Banner</label>
                     </div>
 
-                    <button @click="saveContent" class="mt-4 w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-slate-200 transition-colors active:scale-95">Save to Database</button>
+                    <button @click="saveContent" class="mt-4 w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-slate-200 transition-colors active:scale-95">{{ editingKey ? 'Update Database' : 'Save to Database' }}</button>
                 </div>
 
                 <!-- Right: List -->
@@ -145,6 +153,9 @@
                                 <p class="text-xs text-slate-400">{{ item.year }} • {{ item.category }} • <span class="uppercase text-purple-400 font-bold">{{ item.type }}</span></p>
                                 <p class="text-xs text-slate-500 mt-1 line-clamp-1">{{ item.description }}</p>
                             </div>
+                            <button @click="editContent(key, item)" class="w-10 h-10 flex items-center justify-center rounded-full bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 active:scale-95 transition-all">
+                                <span class="material-symbols-outlined text-[20px]">edit</span>
+                            </button>
                             <button @click="deleteContent(key)" class="w-10 h-10 flex items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 active:scale-95 transition-all">
                                 <span class="material-symbols-outlined text-[20px]">delete</span>
                             </button>
@@ -192,6 +203,7 @@
                 const imgbbApiKey = ref(localStorage.getItem('imgbbApiKey') || '');
                 const items = ref({});
                 const uploadingImage = ref(false);
+                const editingKey = ref(null);
 
                 const defaultForm = () => ({
                     type: 'movie',
@@ -207,13 +219,31 @@
 
                 const form = ref(defaultForm());
 
-                const categories = computed(() => {
-                    const cats = new Set();
+                const allCategories = computed(() => {
+                    const cats = new Set(['Action', 'Sci-Fi', 'Comedy', 'Drama', 'Horror']);
                     Object.values(items.value).forEach(i => {
-                        if(i.category) cats.add(i.category);
+                        if(i.category) {
+                            i.category.split(',').forEach(c => cats.add(c.trim()));
+                        }
                     });
-                    return Array.from(cats);
+                    return Array.from(cats).filter(c => c);
                 });
+                
+                const hasCategory = (cat) => {
+                    if(!form.value.category) return false;
+                    const currentCats = form.value.category.split(',').map(c => c.trim());
+                    return currentCats.includes(cat);
+                };
+                
+                const toggleCategory = (cat) => {
+                    let currentCats = form.value.category ? form.value.category.split(',').map(c => c.trim()).filter(c => c) : [];
+                    if(currentCats.includes(cat)) {
+                        currentCats = currentCats.filter(c => c !== cat);
+                    } else {
+                        currentCats.push(cat);
+                    }
+                    form.value.category = currentCats.join(', ');
+                };
 
                 onMounted(() => {
                     contentRef.on('value', (snapshot) => {
@@ -281,7 +311,10 @@
                         return;
                     }
                     
-                    const dataToSave = { ...form.value, timestamp: firebase.database.ServerValue.TIMESTAMP };
+                    const dataToSave = { ...form.value };
+                    if (!editingKey.value) {
+                        dataToSave.timestamp = firebase.database.ServerValue.TIMESTAMP;
+                    }
                     
                     // Clean up data based on type
                     if (dataToSave.type === 'movie') {
@@ -290,10 +323,28 @@
                         delete dataToSave.videoUrl;
                     }
 
-                    contentRef.push(dataToSave).then(() => {
-                        form.value = defaultForm();
-                        document.getElementById('fileUpload').value = '';
-                    }).catch(err => alert("Error saving: " + err));
+                    if (editingKey.value) {
+                        contentRef.child(editingKey.value).update(dataToSave).then(() => {
+                            form.value = defaultForm();
+                            editingKey.value = null;
+                            document.getElementById('fileUpload').value = '';
+                        }).catch(err => alert("Error updating: " + err));
+                    } else {
+                        contentRef.push(dataToSave).then(() => {
+                            form.value = defaultForm();
+                            document.getElementById('fileUpload').value = '';
+                        }).catch(err => alert("Error saving: " + err));
+                    }
+                };
+
+                const editContent = (key, item) => {
+                    editingKey.value = key;
+                    form.value = { ...defaultForm(), ...JSON.parse(JSON.stringify(item)) };
+                };
+                
+                const cancelEdit = () => {
+                    editingKey.value = null;
+                    form.value = defaultForm();
                 };
 
                 const deleteContent = (key) => {
@@ -307,8 +358,11 @@
                     imgbbApiKey,
                     items,
                     form,
-                    categories,
+                    allCategories,
+                    hasCategory,
+                    toggleCategory,
                     uploadingImage,
+                    editingKey,
                     saveSettings,
                     addSeason,
                     removeSeason,
@@ -316,6 +370,8 @@
                     removeEpisode,
                     uploadImage,
                     saveContent,
+                    editContent,
+                    cancelEdit,
                     deleteContent
                 };
             }

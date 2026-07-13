@@ -63,7 +63,18 @@ class MoviesViewModel : ViewModel() {
 
     private fun processMovies(movies: List<Movie>) {
         val heroMovie = movies.firstOrNull { it.isHero } ?: movies.firstOrNull()
-        val categories = movies.groupBy { it.category }
+        
+        val categories = mutableMapOf<String, MutableList<Movie>>()
+        for (movie in movies) {
+            val cats = movie.category.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            if (cats.isEmpty()) {
+                categories.getOrPut("Uncategorized") { mutableListOf() }.add(movie)
+            } else {
+                for (cat in cats) {
+                    categories.getOrPut(cat) { mutableListOf() }.add(movie)
+                }
+            }
+        }
         _uiState.value = MoviesUiState.Success(heroMovie, categories)
     }
 }

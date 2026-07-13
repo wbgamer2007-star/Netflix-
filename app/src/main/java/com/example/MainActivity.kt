@@ -33,9 +33,9 @@ class MainActivity : ComponentActivity() {
                     NavHost(navController = navController, startDestination = "main") {
                         composable("main") {
                             MainScreen(
-                                onNavigateToPlayer = { videoUrl ->
-                                    val encodedUrl = URLEncoder.encode(videoUrl, StandardCharsets.UTF_8.toString())
-                                    navController.navigate("player/$encodedUrl")
+                                onNavigateToPlayer = { movieId, videoUrl ->
+                                    val encodedUrl = android.util.Base64.encodeToString(videoUrl.toByteArray(StandardCharsets.UTF_8), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+                                    navController.navigate("player/$movieId/$encodedUrl")
                                 },
                                 onNavigateToSeries = { seriesId ->
                                     navController.navigate("series/$seriesId")
@@ -47,15 +47,23 @@ class MainActivity : ComponentActivity() {
                             SeriesDetailScreen(
                                 seriesId = seriesId,
                                 onNavigateUp = { navController.navigateUp() },
-                                onPlayEpisode = { videoUrl ->
-                                    val encodedUrl = URLEncoder.encode(videoUrl, StandardCharsets.UTF_8.toString())
-                                    navController.navigate("player/$encodedUrl")
+                                onPlayEpisode = { episodeTitle, videoUrl ->
+                                    val encodedUrl = android.util.Base64.encodeToString(videoUrl.toByteArray(StandardCharsets.UTF_8), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+                                    val encodedTitle = android.util.Base64.encodeToString(episodeTitle.toByteArray(StandardCharsets.UTF_8), android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+                                    navController.navigate("player/${seriesId}_$encodedTitle/$encodedUrl")
                                 }
                             )
                         }
-                        composable("player/{videoUrl}") { backStackEntry ->
-                            val videoUrl = backStackEntry.arguments?.getString("videoUrl") ?: ""
+                        composable("player/{movieId}/{videoUrl}") { backStackEntry ->
+                            val encodedUrl = backStackEntry.arguments?.getString("videoUrl") ?: ""
+                            val movieId = backStackEntry.arguments?.getString("movieId") ?: ""
+                            val videoUrl = try {
+                                String(android.util.Base64.decode(encodedUrl, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING), StandardCharsets.UTF_8)
+                            } catch (e: Exception) {
+                                ""
+                            }
                             VideoPlayerScreen(
+                                movieId = movieId,
                                 videoUrl = videoUrl,
                                 onNavigateUp = { navController.navigateUp() }
                             )
