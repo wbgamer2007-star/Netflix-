@@ -26,17 +26,4 @@ class LocalDataRepository(private val dao: UserActivityDao) {
             dao.insertActivity(UserActivity(movieId = movieId, isLiked = isLiked))
         }
     }
-
-    suspend fun toggleSaved(movieId: String, isSaved: Boolean) {
-        val existing = dao.getActivitySync(movieId)
-        if (existing != null) {
-            dao.updateSaved(movieId, isSaved)
-        } else {
-            dao.insertActivity(UserActivity(movieId = movieId, isSaved = isSaved))
-        }
-    }
-
-    suspend fun deleteActivity(movieId: String) {
-        dao.deleteActivity(movieId)
-    }
 }

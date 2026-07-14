@@ -16,36 +16,16 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val _startPosition = MutableStateFlow(0L)
     val startPosition = _startPosition.asStateFlow()
 
-    private val _activeActivity = MutableStateFlow<UserActivity?>(null)
-    val activeActivity = _activeActivity.asStateFlow()
-
-    private var collectJob: kotlinx.coroutines.Job? = null
-
     fun loadProgress(movieId: String) {
-        collectJob?.cancel()
-        collectJob = viewModelScope.launch {
-            repository.getActivity(movieId).collect { activity ->
-                _startPosition.value = activity?.progress ?: 0L
-                _activeActivity.value = activity
-            }
+        viewModelScope.launch {
+            val activity = repository.getActivitySync(movieId)
+            _startPosition.value = activity?.progress ?: 0L
         }
     }
 
     fun saveProgress(movieId: String, progress: Long, duration: Long) {
         viewModelScope.launch {
             repository.saveProgress(movieId, progress, duration)
-        }
-    }
-
-    fun toggleLiked(movieId: String, isLiked: Boolean) {
-        viewModelScope.launch {
-            repository.toggleLiked(movieId, isLiked)
-        }
-    }
-
-    fun toggleSaved(movieId: String, isSaved: Boolean) {
-        viewModelScope.launch {
-            repository.toggleSaved(movieId, isSaved)
         }
     }
 }

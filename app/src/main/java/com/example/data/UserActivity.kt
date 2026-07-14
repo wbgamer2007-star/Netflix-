@@ -9,6 +9,5 @@ data class UserActivity(
     val progress: Long = 0L,
     val duration: Long = 0L,
     val isLiked: Boolean = false,
-    val isSaved: Boolean = false,
     val lastWatched: Long = System.currentTimeMillis()
 )
