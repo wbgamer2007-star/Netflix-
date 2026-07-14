@@ -263,9 +263,39 @@
                         </div>
 
                         <!-- Movie Specific URL input -->
-                        <div v-if="form.type === 'movie'" class="sm:col-span-2 border-t border-white/5 pt-4">
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Video Stream URL</label>
-                            <input type="text" v-model="form.videoUrl" placeholder="Stream link (e.g. HLS, MP4 or YouTube)" class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none">
+                        <div v-if="form.type === 'movie'" class="sm:col-span-2 border-t border-white/5 pt-4 space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Video Stream URL</label>
+                                <input type="text" v-model="form.videoUrl" placeholder="Stream link (e.g. HLS, MP4 or YouTube)" class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none">
+                            </div>
+
+                            <!-- Movie Audio Tracks Manager (Optional) -->
+                            <div class="bg-black/30 p-4 rounded-2xl border border-white/5 space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <div class="flex flex-col">
+                                        <span class="text-xs font-bold text-white">Audio Tracks (Optional)</span>
+                                        <span class="text-[10px] text-slate-400">Add separate direct links for multiple languages</span>
+                                    </div>
+                                    <button @click.prevent="addMovieAudioTrack" class="bg-brand-orangeGlow hover:bg-brand-orange/20 text-brand-orange border border-brand-orange/20 font-bold text-[10px] px-3 py-1.5 rounded-xl flex items-center gap-1 transition-all">
+                                        <span class="material-symbols-outlined text-sm">add</span>
+                                        <span>Add Track</span>
+                                    </button>
+                                </div>
+                                <div v-if="!form.audioTracks || form.audioTracks.length === 0" class="text-center py-4 text-slate-500 border border-dashed border-white/5 rounded-xl text-[10px]">
+                                    No custom audio tracks added yet. (Optional)
+                                </div>
+                                <div v-for="(track, tIdx) in form.audioTracks" :key="tIdx" class="flex gap-2 items-center bg-black/40 p-2 rounded-xl border border-white/5 animate-fadeIn">
+                                    <select v-model="track.language" class="bg-black/60 text-white text-xs rounded-lg px-2 py-2.5 focus:outline-none border border-white/10 w-28">
+                                        <option value="English">English</option>
+                                        <option value="Bengali">Bengali</option>
+                                        <option value="Hindi">Hindi</option>
+                                    </select>
+                                    <input v-model="track.audioUrl" placeholder="Direct Audio URL (.mp3, .m4a, etc.)" class="flex-1 bg-black/40 text-white text-xs rounded-lg px-3 py-2 focus:outline-none border border-white/10">
+                                    <button @click.prevent="removeMovieAudioTrack(tIdx)" class="text-rose-400 hover:text-rose-300 p-1.5 hover:bg-rose-500/10 rounded-lg transition-all">
+                                        <span class="material-symbols-outlined text-lg">delete</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -309,6 +339,28 @@
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         <input v-model="episode.title" placeholder="Episode Title (e.g. Episode 1: Pilot)" class="w-full bg-black/40 text-white text-xs rounded-xl p-3 border border-white/5 focus:border-brand-orange focus:outline-none">
                                         <input v-model="episode.videoUrl" placeholder="Video Stream URL" class="w-full bg-black/40 text-white text-xs rounded-xl p-3 border border-white/5 focus:border-brand-orange focus:outline-none">
+                                    </div>
+
+                                    <!-- Episode Audio Tracks (Optional) -->
+                                    <div class="bg-black/20 p-3 rounded-xl border border-white/5 space-y-2 mt-2">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-[10px] font-bold text-slate-300">Episode Audio Tracks (Optional)</span>
+                                            <button @click.prevent="addEpisodeAudioTrack(sIdx, eIdx)" class="text-[10px] text-brand-orange hover:underline font-extrabold">+ Add Audio Track</button>
+                                        </div>
+                                        <div v-if="!episode.audioTracks || episode.audioTracks.length === 0" class="text-center py-2 text-slate-500 border border-dashed border-white/5 rounded-lg text-[9px]">
+                                            No separate audio tracks configured for this episode.
+                                        </div>
+                                        <div v-for="(track, tIdx) in (episode.audioTracks || [])" :key="tIdx" class="flex gap-2 items-center bg-black/30 p-1.5 rounded-lg border border-white/5 animate-fadeIn">
+                                            <select v-model="track.language" class="bg-black/60 text-white text-[10px] rounded px-1.5 py-1.5 focus:outline-none border border-white/10 w-24">
+                                                <option value="English">English</option>
+                                                <option value="Bengali">Bengali</option>
+                                                <option value="Hindi">Hindi</option>
+                                            </select>
+                                            <input v-model="track.audioUrl" placeholder="Direct Audio URL" class="flex-1 bg-black/40 text-white text-[10px] rounded px-2 py-1.5 focus:outline-none border border-white/10">
+                                            <button @click.prevent="removeEpisodeAudioTrack(sIdx, eIdx, tIdx)" class="text-rose-400 hover:text-rose-300 p-1 hover:bg-rose-500/10 rounded">
+                                                <span class="material-symbols-outlined text-base">delete</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -671,7 +723,8 @@
                     isHero: false,
                     videoUrl: '',
                     language: '',
-                    seasons: []
+                    seasons: [],
+                    audioTracks: []
                 });
 
                 const form = ref(defaultForm());
@@ -793,18 +846,45 @@
                     form.value.seasons.splice(idx, 1);
                 };
 
-                const addEpisode = (seasonIdx) => {
+                 const addEpisode = (seasonIdx) => {
                     if (!form.value.seasons[seasonIdx].episodes) {
                         form.value.seasons[seasonIdx].episodes = [];
                     }
                     form.value.seasons[seasonIdx].episodes.push({ 
                         title: 'Episode ' + (form.value.seasons[seasonIdx].episodes.length + 1), 
-                        videoUrl: '' 
+                        videoUrl: '',
+                        audioTracks: []
                     });
                 };
 
                 const removeEpisode = (seasonIdx, epIdx) => {
                     form.value.seasons[seasonIdx].episodes.splice(epIdx, 1);
+                };
+
+                const addMovieAudioTrack = () => {
+                    if (!form.value.audioTracks) {
+                        form.value.audioTracks = [];
+                    }
+                    form.value.audioTracks.push({ language: 'English', audioUrl: '' });
+                };
+
+                const removeMovieAudioTrack = (idx) => {
+                    form.value.audioTracks.splice(idx, 1);
+                };
+
+                const addEpisodeAudioTrack = (seasonIdx, epIdx) => {
+                    const ep = form.value.seasons[seasonIdx].episodes[epIdx];
+                    if (!ep.audioTracks) {
+                        ep.audioTracks = [];
+                    }
+                    if (!Array.isArray(ep.audioTracks)) {
+                        ep.audioTracks = [];
+                    }
+                    ep.audioTracks.push({ language: 'English', audioUrl: '' });
+                };
+
+                const removeEpisodeAudioTrack = (seasonIdx, epIdx, trackIdx) => {
+                    form.value.seasons[seasonIdx].episodes[epIdx].audioTracks.splice(trackIdx, 1);
                 };
 
                 // Core ImgBB upload implementation
@@ -953,6 +1033,10 @@
                     removeSeason,
                     addEpisode,
                     removeEpisode,
+                    addMovieAudioTrack,
+                    removeMovieAudioTrack,
+                    addEpisodeAudioTrack,
+                    removeEpisodeAudioTrack,
                     uploadImage,
                     saveContent,
                     editContent,

@@ -5,14 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,15 +22,14 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.example.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,21 +38,11 @@ fun ProfileSetupScreen(
     onProfileCreated: () -> Unit
 ) {
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val sharedPrefs = remember { context.getSharedPreferences("user_profile_prefs", Context.MODE_PRIVATE) }
     
     var username by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
-    var customAvatarUrl by remember { mutableStateOf("") }
-    
-    val presetAvatars = listOf(
-        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80",
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80",
-        "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80",
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&q=80",
-        "https://images.unsplash.com/photo-1628157582853-a796fa650a6a?auto=format&fit=crop&w=150&q=80"
-    )
-    
-    var selectedAvatar by remember { mutableStateOf(presetAvatars[0]) }
     var errorMessage by remember { mutableStateOf("") }
 
     Box(
@@ -99,7 +86,7 @@ fun ProfileSetupScreen(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(bottom = 32.dp)
+                modifier = Modifier.padding(bottom = 24.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -132,7 +119,7 @@ fun ProfileSetupScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Customize your profile to unlock customized recommendations.",
+                text = "Enter your details to unlock customized recommendations.",
                 fontSize = 14.sp,
                 color = TextSlate400,
                 textAlign = TextAlign.Center,
@@ -141,91 +128,24 @@ fun ProfileSetupScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Profile Avatar Picker
+            // Beautiful, Stylized Avatar Placeholder Icon
             Box(
                 modifier = Modifier
-                    .size(100.dp)
+                    .size(110.dp)
                     .clip(CircleShape)
                     .background(GlassLight)
-                    .border(2.dp, AccentOrange, CircleShape),
+                    .border(2.dp, Brush.linearGradient(listOf(AccentOrange, AccentPurple)), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                val currentImgUrl = if (customAvatarUrl.isNotBlank()) customAvatarUrl else selectedAvatar
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(currentImgUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Selected Avatar",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile Icon",
+                    tint = Color.White.copy(alpha = 0.9f),
+                    modifier = Modifier.size(56.dp)
                 )
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Preset Avatars list
-            Text(
-                text = "Choose an Avatar",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextSlate300,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp),
-                modifier = Modifier.padding(bottom = 24.dp)
-            ) {
-                items(presetAvatars) { url ->
-                    val isSelected = selectedAvatar == url && customAvatarUrl.isBlank()
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(GlassLight)
-                            .border(
-                                width = if (isSelected) 3.dp else 1.dp,
-                                color = if (isSelected) AccentOrange else GlassBorder,
-                                shape = CircleShape
-                            )
-                            .clickable {
-                                selectedAvatar = url
-                                customAvatarUrl = ""
-                            }
-                    ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(url)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Preset Avatar",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-            }
-
-            // Input: Custom Avatar URL (Optional)
-            OutlinedTextField(
-                value = customAvatarUrl,
-                onValueChange = { customAvatarUrl = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                label = { Text("Or paste Image URL (Optional)", color = TextSlate400) },
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = GlassBorder,
-                    focusedBorderColor = AccentOrange,
-                    unfocusedContainerColor = GlassLight,
-                    focusedContainerColor = GlassLight,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                )
-            )
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Input: Username (Required)
             OutlinedTextField(
@@ -239,6 +159,7 @@ fun ProfileSetupScreen(
                     .padding(bottom = 16.dp),
                 label = { Text("Username", color = TextSlate400) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     unfocusedBorderColor = GlassBorder,
@@ -263,7 +184,15 @@ fun ProfileSetupScreen(
                     .fillMaxWidth()
                     .padding(bottom = 24.dp),
                 label = { Text("Age", color = TextSlate400) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        keyboardController?.hide()
+                    }
+                ),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -290,20 +219,19 @@ fun ProfileSetupScreen(
             // Create Button
             Button(
                 onClick = {
-                    if (username.isBlank()) {
+                    if (username.trim().isBlank()) {
                         errorMessage = "Please enter a username"
                         return@Button
                     }
-                    if (age.isBlank()) {
+                    if (age.trim().isBlank()) {
                         errorMessage = "Please enter your age"
                         return@Button
                     }
-                    val finalAvatar = if (customAvatarUrl.isNotBlank()) customAvatarUrl else selectedAvatar
                     
                     sharedPrefs.edit().apply {
                         putString("username", username.trim())
                         putString("age", age.trim())
-                        putString("avatar_url", finalAvatar)
+                        putString("avatar_url", "") // No custom URL used
                         putBoolean("profile_created", true)
                         apply()
                     }

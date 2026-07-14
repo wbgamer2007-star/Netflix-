@@ -8,6 +8,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -495,6 +499,7 @@ fun NeoflixHeader() {
 
 @Composable
 fun SearchBarCustom(query: String, onQueryChange: (String) -> Unit) {
+    val keyboardController = LocalSoftwareKeyboardController.current
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
@@ -504,6 +509,15 @@ fun SearchBarCustom(query: String, onQueryChange: (String) -> Unit) {
         placeholder = { Text("Search movies, genres, categories...", color = TextSlate400) },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = TextSlate400) },
         shape = RoundedCornerShape(24.dp),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(
+            imeAction = ImeAction.Search
+        ),
+        keyboardActions = KeyboardActions(
+            onSearch = {
+                keyboardController?.hide()
+            }
+        ),
         colors = OutlinedTextFieldDefaults.colors(
             unfocusedBorderColor = GlassBorder,
             focusedBorderColor = AccentOrange,

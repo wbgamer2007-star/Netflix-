@@ -48,10 +48,13 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MergingMediaSource
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.data.ContentRepository
 import com.example.data.Movie
+import com.example.data.AudioTrack
+import com.example.data.NetworkModule
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
 import java.nio.charset.StandardCharsets
@@ -73,6 +76,7 @@ fun VideoPlayerScreen(
 
     val activity = context as? Activity
     var isFullscreen by remember { mutableStateOf(false) }
+    var videoResizeMode by remember { mutableStateOf(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT) }
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -91,7 +95,65 @@ fun VideoPlayerScreen(
         ""
     }
 
-    val movie = ContentRepository.contentList.find { it.id == baseMovieId }
+    var currentMovie by remember(baseMovieId) {
+        mutableStateOf(ContentRepository.contentList.find { it.id == baseMovieId })
+    }
+    
+    LaunchedEffect(baseMovieId) {
+        if (currentMovie == null) {
+            try {
+                val response = NetworkModule.apiService.getContent()
+                if (response != null) {
+                    val moviesList = response.map { (key, value) -> value.apply { id = key } }.sortedByDescending { it.timestamp }
+                    ContentRepository.contentList = moviesList
+                    currentMovie = moviesList.find { it.id == baseMovieId }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    val movie = currentMovie
+
+    val relatedContent = remember(baseMovieId, movie) {
+        if (movie == null) {
+            emptyList()
+        } else {
+            val currentCats = movie.category.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+            val categoryMatched = ContentRepository.contentList.filter { other ->
+                other.id != baseMovieId &&
+                other.category.split(",").any { cat ->
+                    val trimmedCat = cat.trim().lowercase()
+                    trimmedCat.isNotEmpty() && currentCats.contains(trimmedCat)
+                }
+            }
+            if (categoryMatched.isNotEmpty()) {
+                categoryMatched.take(10)
+            } else {
+                ContentRepository.contentList.filter { other -> other.id != baseMovieId }.take(10)
+            }
+        }
+    }
+
+    val currentEpisode = remember(movie, decodedEpisodeTitle) {
+        if (isSeriesEpisode && movie != null) {
+            movie.seasons?.flatMap { it.episodes ?: emptyList() }?.find { it.title == decodedEpisodeTitle }
+        } else {
+            null
+        }
+    }
+
+    val audioTracks = remember(movie, currentEpisode, isSeriesEpisode) {
+        if (isSeriesEpisode) {
+            currentEpisode?.audioTracks ?: emptyList()
+        } else {
+            movie?.audioTracks ?: emptyList()
+        }
+    }
+
+    var selectedAudioTrackIndex by remember { mutableIntStateOf(-1) }
+    var showAudioSelector by remember { mutableStateOf(false) }
     val activeActivity by playerViewModel.activeActivity.collectAsState()
     val isLiked = activeActivity?.isLiked ?: false
     val isSaved = activeActivity?.isSaved ?: false
@@ -106,28 +168,52 @@ fun VideoPlayerScreen(
     }
 
     val exoPlayer = remember(movieId) {
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
-            .setAllowCrossProtocolRedirects(true)
-        
         val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(context)
             .setEnableDecoderFallback(true)
         
         ExoPlayer.Builder(context, renderersFactory)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .build().apply {
-                if (videoUrl.isNotEmpty()) {
-                    setMediaItem(MediaItem.fromUri(android.net.Uri.parse(videoUrl)))
-                    prepare()
-                    this.playWhenReady = playWhenReady
-                    
-                    addListener(object : Player.Listener {
-                        override fun onPlaybackStateChanged(playbackState: Int) {
-                            isBuffering = playbackState == Player.STATE_BUFFERING
-                        }
-                    })
-                }
+                this.playWhenReady = playWhenReady
+                addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        isBuffering = playbackState == Player.STATE_BUFFERING
+                    }
+                })
             }
+    }
+
+    // Dynamic prepare or reload on videoUrl or custom audio track change
+    LaunchedEffect(exoPlayer, videoUrl, selectedAudioTrackIndex, audioTracks) {
+        if (videoUrl.isEmpty()) return@LaunchedEffect
+        
+        val dataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+            .setAllowCrossProtocolRedirects(true)
+        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+        
+        val videoUri = android.net.Uri.parse(videoUrl)
+        val videoSource = mediaSourceFactory.createMediaSource(MediaItem.fromUri(videoUri))
+        
+        if (selectedAudioTrackIndex >= 0 && selectedAudioTrackIndex < audioTracks.size) {
+            val audioTrack = audioTracks[selectedAudioTrackIndex]
+            val audioUri = android.net.Uri.parse(audioTrack.audioUrl)
+            val audioSource = mediaSourceFactory.createMediaSource(MediaItem.fromUri(audioUri))
+            val mergedSource = MergingMediaSource(videoSource, audioSource)
+            
+            val currentPos = exoPlayer.currentPosition
+            exoPlayer.setMediaSource(mergedSource)
+            exoPlayer.prepare()
+            if (currentPos > 0) {
+                exoPlayer.seekTo(currentPos)
+            }
+        } else {
+            val currentPos = exoPlayer.currentPosition
+            exoPlayer.setMediaSource(videoSource)
+            exoPlayer.prepare()
+            if (currentPos > 0) {
+                exoPlayer.seekTo(currentPos)
+            }
+        }
     }
     
     // Seek to last saved progress once loaded
@@ -150,6 +236,18 @@ fun VideoPlayerScreen(
         }
     }
 
+    // 1. Reset activity orientation and system bars ONLY when this screen is completely exited/disposed
+    DisposableEffect(Unit) {
+        onDispose {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            activity?.window?.let { window ->
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    // 2. Manage ExoPlayer saving and release cleanly on player instance change or disposal
     DisposableEffect(exoPlayer) {
         onDispose {
             val currentPos = exoPlayer.currentPosition
@@ -158,11 +256,6 @@ fun VideoPlayerScreen(
                 playerViewModel.saveProgress(movieId, currentPos, duration)
             }
             exoPlayer.release()
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            activity?.window?.let { window ->
-                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
-            }
         }
     }
 
@@ -198,20 +291,27 @@ fun VideoPlayerScreen(
                 .fillMaxWidth()
                 .then(if (isFullscreen) Modifier.fillMaxHeight() else Modifier.aspectRatio(16f / 9f))
                 .background(Color.Black)
-                .statusBarsPadding()
+                .then(if (!isFullscreen) Modifier.statusBarsPadding() else Modifier)
         ) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
                     androidx.media3.ui.PlayerView(ctx).apply {
-                        player = exoPlayer
                         useController = false
-                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        resizeMode = videoResizeMode
                         layoutParams = FrameLayout.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
                         keepScreenOn = true
+                    }
+                },
+                update = { playerView ->
+                    if (playerView.player != exoPlayer) {
+                        playerView.player = exoPlayer
+                    }
+                    if (playerView.resizeMode != videoResizeMode) {
+                        playerView.resizeMode = videoResizeMode
                     }
                 }
             )
@@ -228,10 +328,33 @@ fun VideoPlayerScreen(
                     }
                 },
                 onShowSettings = {
-                    val builder = androidx.media3.ui.TrackSelectionDialogBuilder(
-                        context, "Audio & Subtitle Tracks", exoPlayer, androidx.media3.common.C.TRACK_TYPE_AUDIO
-                    )
-                    builder.build().show()
+                    if (audioTracks.isNotEmpty()) {
+                        showAudioSelector = true
+                    } else {
+                        val dialogContext = activity ?: context
+                        val builder = androidx.media3.ui.TrackSelectionDialogBuilder(
+                            dialogContext, "Audio & Subtitle Tracks", exoPlayer, androidx.media3.common.C.TRACK_TYPE_AUDIO
+                        )
+                        builder.build().show()
+                    }
+                },
+                isFullscreen = isFullscreen,
+                onToggleFullscreen = {
+                    if (isFullscreen) {
+                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                        isFullscreen = false
+                    } else {
+                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        isFullscreen = true
+                    }
+                },
+                videoResizeMode = videoResizeMode,
+                onToggleResizeMode = {
+                    videoResizeMode = when (videoResizeMode) {
+                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
+                        else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    }
                 },
                 modifier = Modifier.fillMaxSize()
             )
@@ -472,14 +595,6 @@ fun VideoPlayerScreen(
                         )
                     }
 
-                    // Get similar movies by matching genre/categories
-                    val relatedContent = ContentRepository.contentList.filter { 
-                        it.id != baseMovieId && 
-                        it.category.split(",").any { cat -> 
-                            movie.category.contains(cat.trim()) 
-                        } 
-                    }.take(10) // Show up to 10 suggested movies
-
                     if (relatedContent.isEmpty()) {
                         item {
                             Text(
@@ -564,8 +679,119 @@ fun VideoPlayerScreen(
                             }
                         }
                     }
+                } else {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(color = NetflixRed)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Loading details...",
+                                color = TextSlate400,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+
+    if (showAudioSelector) {
+        AlertDialog(
+            onDismissRequest = { showAudioSelector = false },
+            title = {
+                Text(
+                    text = "Select Audio Language",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp,
+                    color = Color.White
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Default Track Option
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (selectedAudioTrackIndex == -1) GlassLight else Color.Transparent)
+                            .clickable {
+                                selectedAudioTrackIndex = -1
+                                showAudioSelector = false
+                            }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Default / Video's Audio",
+                            color = Color.White,
+                            fontWeight = if (selectedAudioTrackIndex == -1) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (selectedAudioTrackIndex == -1) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = NetflixRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    
+                    // Custom Audio Track Options
+                    audioTracks.forEachIndexed { index, track ->
+                        val isSelected = selectedAudioTrackIndex == index
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) GlassLight else Color.Transparent)
+                                .clickable {
+                                    selectedAudioTrackIndex = index
+                                    showAudioSelector = false
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = track.language,
+                                color = Color.White,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 14.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = NetflixRed,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAudioSelector = false }) {
+                    Text("Close", color = NetflixRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = BackgroundDark,
+            titleContentColor = Color.White,
+            textContentColor = Color.White,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.border(1.dp, GlassBorder, RoundedCornerShape(16.dp))
+        )
     }
 }

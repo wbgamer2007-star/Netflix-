@@ -39,6 +39,10 @@ fun H5PlayerControls(
     title: String,
     onBack: () -> Unit,
     onShowSettings: () -> Unit,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    videoResizeMode: Int,
+    onToggleResizeMode: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isPlaying by remember { mutableStateOf(player.isPlaying) }
@@ -256,6 +260,43 @@ fun H5PlayerControls(
                                     color = Color.White,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // Stitch & Crop Toggle Badge
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.White.copy(alpha = 0.12f))
+                                    .clickable { onToggleResizeMode() }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Default.AspectRatio, contentDescription = "Stitch & Crop", tint = Color.White, modifier = Modifier.size(12.dp))
+                                Text(
+                                    text = when (videoResizeMode) {
+                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> "Fit"
+                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> "Crop/Zoom"
+                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL -> "Stretch/Fill"
+                                        else -> "Fit"
+                                    },
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // Fullscreen Toggle Button
+                            IconButton(
+                                onClick = onToggleFullscreen,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                    contentDescription = "Toggle Fullscreen",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
