@@ -39,20 +39,19 @@ import com.example.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    onNavigateToPlayer: (String, String) -> Unit,
+    onNavigateToPlayer: (String) -> Unit,
     onNavigateToSeries: (String) -> Unit,
     viewModel: MoviesViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    var currentTab by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
-            if (currentTab == 0) NeoflixHeader()
+            NeoflixHeader()
         },
         bottomBar = {
-            NeoflixBottomNav(currentTab) { currentTab = it }
+            NeoflixBottomNav()
         },
         containerColor = BackgroundDark,
     ) { paddingValues ->
@@ -80,48 +79,41 @@ fun MainScreen(
                     .blur(60.dp)
             )
 
-            when (currentTab) {
-                0 -> {
-                    when (val state = uiState) {
-                        is MoviesUiState.Loading -> {
-                            CircularProgressIndicator(
-                                modifier = Modifier.align(Alignment.Center),
-                                color = AccentOrange
-                            )
+            when (val state = uiState) {
+                is MoviesUiState.Loading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = AccentOrange
+                    )
+                }
+                is MoviesUiState.Error -> {
+                    Text(
+                        text = state.message,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                is MoviesUiState.Success -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 32.dp)
+                    ) {
+                        item {
+                            SearchBarCustom(searchQuery) { viewModel.updateSearchQuery(it) }
                         }
-                        is MoviesUiState.Error -> {
-                            Text(
-                                text = state.message,
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.align(Alignment.Center)
-                            )
+
+                        if (searchQuery.isBlank() && state.heroMovie != null) {
+                            item {
+                                HeroBanner(state.heroMovie, onNavigateToPlayer, onNavigateToSeries)
+                            }
                         }
-                        is MoviesUiState.Success -> {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 32.dp)
-                            ) {
-                                item {
-                                    SearchBarCustom(searchQuery) { viewModel.updateSearchQuery(it) }
-                                }
 
-                                if (searchQuery.isBlank() && state.heroMovie != null) {
-                                    item {
-                                        HeroBanner(state.heroMovie, onNavigateToPlayer, onNavigateToSeries)
-                                    }
-                                }
-
-                                state.categories.forEach { (category, movies) ->
-                                    item {
-                                        CategoryRow(category, movies, onNavigateToPlayer, onNavigateToSeries)
-                                    }
-                                }
+                        state.categories.forEach { (category, movies) ->
+                            item {
+                                CategoryRow(category, movies, onNavigateToPlayer, onNavigateToSeries)
                             }
                         }
                     }
-                }
-                1 -> {
-                    HistoryScreen(onNavigateToPlayer, onNavigateToSeries)
                 }
             }
         }
@@ -129,7 +121,7 @@ fun MainScreen(
 }
 
 @Composable
-fun NeoflixBottomNav(currentTab: Int, onTabSelected: (Int) -> Unit) {
+fun NeoflixBottomNav() {
     NavigationBar(
         containerColor = GlassLight.copy(alpha = 0.5f),
         contentColor = Color.White,
@@ -140,8 +132,8 @@ fun NeoflixBottomNav(currentTab: Int, onTabSelected: (Int) -> Unit) {
         tonalElevation = 0.dp
     ) {
         NavigationBarItem(
-            selected = currentTab == 0,
-            onClick = { onTabSelected(0) },
+            selected = true,
+            onClick = { },
             icon = { Icon(Icons.Default.Home, "Home") },
             label = { Text("Home", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
             colors = NavigationBarItemDefaults.colors(
@@ -153,30 +145,25 @@ fun NeoflixBottomNav(currentTab: Int, onTabSelected: (Int) -> Unit) {
             )
         )
         NavigationBarItem(
-            selected = currentTab == 1,
-            onClick = { onTabSelected(1) },
-            icon = { Icon(Icons.Default.List, "History") },
-            label = { Text("History", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = Color.White,
-                selectedTextColor = AccentOrange,
-                unselectedIconColor = TextSlate400,
-                unselectedTextColor = TextSlate400,
-                indicatorColor = AccentOrange.copy(alpha = 0.5f)
-            )
+            selected = false,
+            onClick = { },
+            icon = { Icon(Icons.Default.Explore, "Explore") },
+            label = { Text("Explore", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
+            colors = NavigationBarItemDefaults.colors(unselectedIconColor = TextSlate400, unselectedTextColor = TextSlate400, indicatorColor = Color.Transparent)
         )
         NavigationBarItem(
-            selected = currentTab == 2,
-            onClick = { onTabSelected(2) },
+            selected = false,
+            onClick = { },
+            icon = { Icon(Icons.Default.List, "My List") },
+            label = { Text("My List", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
+            colors = NavigationBarItemDefaults.colors(unselectedIconColor = TextSlate400, unselectedTextColor = TextSlate400, indicatorColor = Color.Transparent)
+        )
+        NavigationBarItem(
+            selected = false,
+            onClick = { },
             icon = { Icon(Icons.Default.Person, "Profile") },
             label = { Text("Profile", fontSize = 10.sp, fontWeight = FontWeight.Medium) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = Color.White,
-                selectedTextColor = AccentOrange,
-                unselectedIconColor = TextSlate400,
-                unselectedTextColor = TextSlate400,
-                indicatorColor = AccentOrange.copy(alpha = 0.5f)
-            )
+            colors = NavigationBarItemDefaults.colors(unselectedIconColor = TextSlate400, unselectedTextColor = TextSlate400, indicatorColor = Color.Transparent)
         )
     }
 }
@@ -265,9 +252,9 @@ fun SearchBarCustom(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
-fun HeroBanner(movie: Movie, onPlay: (String, String) -> Unit, onNavigateToSeries: (String) -> Unit) {
+fun HeroBanner(movie: Movie, onPlay: (String) -> Unit, onNavigateToSeries: (String) -> Unit) {
     val action = {
-        if (movie.type == "series") onNavigateToSeries(movie.id) else onPlay(movie.id, movie.videoUrl)
+        if (movie.type == "series") onNavigateToSeries(movie.id) else onPlay(movie.videoUrl)
     }
 
     Box(
@@ -389,7 +376,7 @@ fun HeroBanner(movie: Movie, onPlay: (String, String) -> Unit, onNavigateToSerie
 }
 
 @Composable
-fun CategoryRow(category: String, movies: List<Movie>, onPlay: (String, String) -> Unit, onNavigateToSeries: (String) -> Unit) {
+fun CategoryRow(category: String, movies: List<Movie>, onPlay: (String) -> Unit, onNavigateToSeries: (String) -> Unit) {
     Column(modifier = Modifier.padding(vertical = 12.dp)) {
         Row(
             modifier = Modifier
@@ -425,9 +412,9 @@ fun CategoryRow(category: String, movies: List<Movie>, onPlay: (String, String) 
 }
 
 @Composable
-fun MovieCard(movie: Movie, onPlay: (String, String) -> Unit, onNavigateToSeries: (String) -> Unit) {
+fun MovieCard(movie: Movie, onPlay: (String) -> Unit, onNavigateToSeries: (String) -> Unit) {
     val action = {
-        if (movie.type == "series") onNavigateToSeries(movie.id) else onPlay(movie.id, movie.videoUrl)
+        if (movie.type == "series") onNavigateToSeries(movie.id) else onPlay(movie.videoUrl)
     }
     
     Column(

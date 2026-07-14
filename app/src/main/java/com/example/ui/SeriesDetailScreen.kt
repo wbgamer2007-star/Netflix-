@@ -27,7 +27,7 @@ import com.example.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SeriesDetailScreen(seriesId: String, onNavigateUp: () -> Unit, onPlayEpisode: (String, String) -> Unit) {
+fun SeriesDetailScreen(seriesId: String, onNavigateUp: () -> Unit, onPlayEpisode: (String) -> Unit) {
     val series = ContentRepository.contentList.find { it.id == seriesId } ?: return
 
     Scaffold(
@@ -91,7 +91,7 @@ fun SeriesDetailScreen(seriesId: String, onNavigateUp: () -> Unit, onPlayEpisode
                             .padding(horizontal = 24.dp, vertical = 6.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(GlassLight)
-                            .clickable { onPlayEpisode(episode.title, episode.videoUrl) }
+                            .clickable { onPlayEpisode(episode.videoUrl) }
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
