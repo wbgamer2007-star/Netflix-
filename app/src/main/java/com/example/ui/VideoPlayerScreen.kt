@@ -4,26 +4,12 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.net.Uri
-import android.view.GestureDetector
-import android.view.MotionEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrightnessMedium
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,9 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -51,7 +34,6 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import kotlinx.coroutines.delay
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -60,12 +42,6 @@ fun VideoPlayerScreen(movieId: String, videoUrl: String, onNavigateUp: () -> Uni
     var playWhenReady by remember { mutableStateOf(true) }
     var isBuffering by remember { mutableStateOf(true) }
     
-    var showBrightnessIndicator by remember { mutableStateOf(false) }
-    var brightnessLevel by remember { mutableStateOf(0f) }
-    
-    var showVolumeIndicator by remember { mutableStateOf(false) }
-    var volumeLevel by remember { mutableStateOf(0f) }
-    
     // Load progress when started
     LaunchedEffect(movieId) {
         playerViewModel.loadProgress(movieId)
@@ -73,7 +49,6 @@ fun VideoPlayerScreen(movieId: String, videoUrl: String, onNavigateUp: () -> Uni
 
     val exoPlayer = remember {
         val dataSourceFactory = DefaultHttpDataSource.Factory()
-            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
             .setAllowCrossProtocolRedirects(true)
         
         ExoPlayer.Builder(context)
@@ -127,20 +102,6 @@ fun VideoPlayerScreen(movieId: String, videoUrl: String, onNavigateUp: () -> Uni
             }
         }
     }
-    
-    LaunchedEffect(brightnessLevel) {
-        if (showBrightnessIndicator) {
-            delay(1500)
-            showBrightnessIndicator = false
-        }
-    }
-    
-    LaunchedEffect(volumeLevel) {
-        if (showVolumeIndicator) {
-            delay(1500)
-            showVolumeIndicator = false
-        }
-    }
 
     Box(
         modifier = Modifier
@@ -159,34 +120,6 @@ fun VideoPlayerScreen(movieId: String, videoUrl: String, onNavigateUp: () -> Uni
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                     keepScreenOn = true
-                    
-                    if (activity != null) {
-                        val gestureDetector = GestureDetector(ctx, GestureHelper(
-                            context = ctx,
-                            activity = activity,
-                            onSeek = {}, // Handled by native ExoPlayer controls
-                            onVolumeChange = { vol ->
-                                volumeLevel = vol
-                                showVolumeIndicator = true
-                            },
-                            onBrightnessChange = { bright ->
-                                brightnessLevel = bright
-                                showBrightnessIndicator = true
-                            },
-                            onSingleTap = {
-                                if (isControllerFullyVisible) {
-                                    hideController()
-                                } else {
-                                    showController()
-                                }
-                            }
-                        ))
-                        
-                        setOnTouchListener { _, event ->
-                            gestureDetector.onTouchEvent(event)
-                            true // Consume touch to prevent default exoPlayer controller toggle except via onSingleTap
-                        }
-                    }
                 }
             }
         )
@@ -196,34 +129,6 @@ fun VideoPlayerScreen(movieId: String, videoUrl: String, onNavigateUp: () -> Uni
                 modifier = Modifier.align(Alignment.Center),
                 color = com.example.ui.theme.AccentOrange
             )
-        }
-        
-        // Volume Indicator
-        AnimatedVisibility(
-            visible = showVolumeIndicator,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.CenterEnd).padding(32.dp)
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.background(Color.Black.copy(alpha=0.6f), shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).padding(16.dp)) {
-                Icon(Icons.Filled.VolumeUp, contentDescription = null, tint = Color.White)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("${(volumeLevel * 100).toInt()}%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
-        }
-        
-        // Brightness Indicator
-        AnimatedVisibility(
-            visible = showBrightnessIndicator,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.CenterStart).padding(32.dp)
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.background(Color.Black.copy(alpha=0.6f), shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).padding(16.dp)) {
-                Icon(Icons.Filled.BrightnessMedium, contentDescription = null, tint = Color.White)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("${(brightnessLevel * 100).toInt()}%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            }
         }
     }
 }
