@@ -1,176 +1,681 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LiquidMovies Admin SPA</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LiquidMovies • Advanced Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <!-- Google Fonts & Material Symbols -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-    <style>
-        body { background-color: #050505; color: #CBD5E1; font-family: sans-serif; margin: 0; height: 100vh; overflow: hidden; }
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            orange: '#F97316',
+                            orangeDark: '#EA580C',
+                            orangeGlow: 'rgba(249, 115, 22, 0.15)',
+                            bgDark: '#030712',
+                            cardDark: 'rgba(17, 24, 39, 0.7)',
+                            borderDark: 'rgba(255, 255, 255, 0.08)'
+                        }
+                    }
+                }
+            }
         }
+    </script>
+    
+    <style>
+        body {
+            background-color: #030712;
+            color: #F1F5F9;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Modern Glassmorphism styling */
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .glass-input {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-input:focus {
+            border-color: #F97316;
+            background: rgba(0, 0, 0, 0.6);
+            box-shadow: 0 0 12px rgba(249, 115, 22, 0.15);
+        }
+
         .liquid-bg {
             position: fixed;
-            top: -20%; left: -10%; width: 120%; height: 60%;
-            background: radial-gradient(circle at 20% 30%, rgba(242, 125, 38, 0.15) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 70%, rgba(124, 58, 237, 0.15) 0%, transparent 50%);
-            filter: blur(60px);
-            z-index: 0;
+            top: -10%; left: -10%; width: 120%; height: 50%;
+            background: radial-gradient(circle at 10% 20%, rgba(249, 115, 22, 0.12) 0%, transparent 45%),
+                        radial-gradient(circle at 90% 80%, rgba(124, 58, 237, 0.1) 0%, transparent 45%);
+            filter: blur(80px);
+            z-index: -1;
             pointer-events: none;
         }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Material symbol customization */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
     </style>
 </head>
-<body>
-    <div id="app" class="h-full flex flex-col relative z-10">
+<body class="h-full flex flex-col">
+    <div id="app" class="min-h-screen flex flex-col relative pb-28 md:pb-6">
+        <!-- Floating Liquid Background Glows -->
         <div class="liquid-bg"></div>
-        
-        <header class="flex items-center justify-between px-6 py-4 glass-panel rounded-b-2xl mx-4 mt-2">
-            <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shadow-[0_0_15px_rgba(242,125,38,0.4)]">
-                    <div class="w-4 h-4 bg-white rounded-sm transform rotate-45"></div>
+
+        <!-- Sticky Top Navigation Header -->
+        <header class="sticky top-0 z-40 glass-panel border-b border-white/5 px-4 md:px-8 py-3.5 mb-6 shadow-xl">
+            <div class="max-w-7xl mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-orangeDark to-orange-400 flex items-center justify-center shadow-[0_0_20px_rgba(249,115,22,0.35)]">
+                        <span class="material-symbols-outlined text-white font-bold text-2xl">movie</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-extrabold text-lg md:text-xl tracking-tight text-white uppercase">LiquidMovies</span>
+                            <span class="text-[10px] bg-brand-orangeGlow border border-brand-orange/20 text-brand-orange px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Admin SPA</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 font-medium hidden md:block">Realtime Database Management Console</p>
+                    </div>
                 </div>
-                <span class="font-bold text-xl tracking-tighter text-white">NEOFLIX ADMIN</span>
-            </div>
-            <div class="flex gap-4">
-                <button @click="currentTab = 'content'" :class="{'text-orange-500': currentTab === 'content', 'text-slate-400': currentTab !== 'content'}" class="font-bold tracking-wider uppercase text-sm">Content</button>
-                <button @click="currentTab = 'settings'" :class="{'text-orange-500': currentTab === 'settings', 'text-slate-400': currentTab !== 'settings'}" class="font-bold tracking-wider uppercase text-sm">Settings</button>
+
+                <!-- Desktop/Tablet Header Navigation -->
+                <nav class="hidden md:flex items-center bg-black/40 p-1.5 rounded-xl border border-white/5">
+                    <button @click="switchTab('add')" :class="{'bg-brand-orange text-white font-semibold shadow-lg shadow-brand-orange/20': currentTab === 'add', 'text-slate-400 hover:text-white': currentTab !== 'add'}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all duration-300">
+                        <span class="material-symbols-outlined text-lg">add_circle</span>
+                        <span>Add Content</span>
+                    </button>
+                    <button @click="switchTab('library')" :class="{'bg-brand-orange text-white font-semibold shadow-lg shadow-brand-orange/20': currentTab === 'library', 'text-slate-400 hover:text-white': currentTab !== 'library'}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all duration-300">
+                        <span class="material-symbols-outlined text-lg">video_library</span>
+                        <span>Library ({{ Object.keys(items).length }})</span>
+                    </button>
+                    <button @click="switchTab('settings')" :class="{'bg-brand-orange text-white font-semibold shadow-lg shadow-brand-orange/20': currentTab === 'settings', 'text-slate-400 hover:text-white': currentTab !== 'settings'}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all duration-300">
+                        <span class="material-symbols-outlined text-lg">settings</span>
+                        <span>Settings</span>
+                    </button>
+                </nav>
+
+                <!-- Database Live Status Indicator -->
+                <div class="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="hidden sm:inline">Firebase Connected</span>
+                    <span class="sm:hidden">Live</span>
+                </div>
             </div>
         </header>
 
-        <main class="flex-1 overflow-hidden p-6 relative z-10 flex flex-col gap-6" v-if="currentTab === 'content'">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-                <!-- Left: Form -->
-                <div class="glass-panel p-6 rounded-3xl col-span-1 h-full overflow-y-auto custom-scrollbar flex flex-col gap-4">
-                    <h2 class="text-xl font-bold text-white mb-2">Add New Content</h2>
-                    
-                    <div class="flex gap-2 p-1 bg-black/40 rounded-xl">
-                        <button @click="form.type = 'movie'" :class="{'bg-orange-500 text-white shadow': form.type === 'movie', 'text-slate-400': form.type !== 'movie'}" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all">Movie</button>
-                        <button @click="form.type = 'series'" :class="{'bg-orange-500 text-white shadow': form.type === 'series', 'text-slate-400': form.type !== 'series'}" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all">Series</button>
-                    </div>
-
+        <!-- Main Wrapper Container -->
+        <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <!-- Editing State Sticky Indicator Banner -->
+            <div v-if="editingKey" class="mb-6 p-4 rounded-2xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-between animate-fadeIn">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-orange-400 animate-bounce">edit_square</span>
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Title</label>
-                        <input type="text" v-model="form.title" class="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 focus:border-orange-500 focus:outline-none">
+                        <h4 class="text-sm font-bold text-white">Active Edit Session</h4>
+                        <p class="text-xs text-orange-300">Currently modifying: <span class="font-mono font-bold">"{{ form.title || 'Untitled' }}"</span></p>
                     </div>
+                </div>
+                <button @click="cancelEdit" class="flex items-center gap-1 text-xs font-semibold bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-xl transition-all">
+                    <span>Cancel Edit</span>
+                </button>
+            </div>
 
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Description</label>
-                        <textarea v-model="form.description" rows="3" class="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 focus:border-orange-500 focus:outline-none"></textarea>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
+            <!-- TAB 1: ADD / EDIT CONTENT -->
+            <section v-if="currentTab === 'add'" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- Main Form (Col-Span 8) -->
+                <div class="lg:col-span-8 glass-panel p-5 md:p-8 rounded-3xl space-y-6 shadow-2xl">
+                    <div class="flex items-center justify-between border-b border-white/5 pb-4">
                         <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Category</label>
-                            <input type="text" v-model="form.category" placeholder="e.g. Sci-Fi" class="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 focus:border-orange-500 focus:outline-none" list="categories-list">
-                            <datalist id="categories-list">
-                                <option v-for="cat in categories" :value="cat"></option>
-                            </datalist>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Year</label>
-                            <input type="number" v-model="form.year" class="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 focus:border-orange-500 focus:outline-none">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Poster Image (URL or Upload)</label>
-                        <input type="text" v-model="form.posterUrl" placeholder="https://..." class="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 focus:border-orange-500 focus:outline-none mb-2">
-                        <div class="flex items-center gap-2">
-                            <input type="file" @change="uploadImage" accept="image/*" class="text-xs text-slate-400" id="fileUpload">
-                            <span v-if="uploadingImage" class="text-xs text-orange-500 animate-pulse">Uploading...</span>
-                        </div>
-                    </div>
-
-                    <div v-if="form.type === 'movie'">
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Video Stream URL</label>
-                        <input type="text" v-model="form.videoUrl" class="w-full bg-black/40 text-white rounded-xl p-3 border border-white/10 focus:border-orange-500 focus:outline-none">
-                    </div>
-
-                    <!-- Series Management -->
-                    <div v-if="form.type === 'series'" class="border-t border-white/10 pt-4 mt-2 space-y-4">
-                        <div class="flex justify-between items-center">
-                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Seasons & Episodes</label>
-                            <button @click.prevent="addSeason" class="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-white">+ Add Season</button>
+                            <h2 class="text-xl md:text-2xl font-extrabold text-white">{{ editingKey ? 'Edit Database Entry' : 'Create Database Entry' }}</h2>
+                            <p class="text-xs text-slate-400 mt-1">Publish metadata for Movies and Series in realtime</p>
                         </div>
                         
-                        <div v-for="(season, sIdx) in form.seasons" :key="sIdx" class="bg-black/30 p-3 rounded-xl border border-white/5 space-y-3">
-                            <div class="flex gap-2">
-                                <input v-model="season.title" placeholder="Season Title" class="flex-1 bg-black/40 text-white text-sm rounded-lg p-2 border border-white/10 focus:border-orange-500 focus:outline-none">
-                                <button @click.prevent="removeSeason(sIdx)" class="text-red-400 px-2 hover:text-red-300">X</button>
-                            </div>
-                            
-                            <div class="space-y-2 pl-4 border-l-2 border-white/10">
-                                <div v-for="(episode, eIdx) in season.episodes" :key="eIdx" class="flex flex-col gap-1 bg-black/20 p-2 rounded-lg">
-                                    <div class="flex justify-between">
-                                        <span class="text-xs font-bold text-slate-400">Episode {{ eIdx + 1 }}</span>
-                                        <button @click.prevent="removeEpisode(sIdx, eIdx)" class="text-red-400 text-xs">Remove</button>
-                                    </div>
-                                    <input v-model="episode.title" placeholder="Episode Title" class="w-full bg-black/40 text-white text-sm rounded-lg p-2 border border-white/10">
-                                    <input v-model="episode.videoUrl" placeholder="Video URL" class="w-full bg-black/40 text-white text-sm rounded-lg p-2 border border-white/10">
-                                </div>
-                                <button @click.prevent="addEpisode(sIdx)" class="text-xs text-orange-400 hover:text-orange-300 font-bold">+ Add Episode</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 mt-2">
-                        <input type="checkbox" v-model="form.isHero" id="isHero" class="h-4 w-4 rounded accent-orange-500">
-                        <label for="isHero" class="text-sm font-bold text-slate-300">Set as Hero Banner</label>
-                    </div>
-
-                    <button @click="saveContent" class="mt-4 w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-slate-200 transition-colors active:scale-95">Save to Database</button>
-                </div>
-
-                <!-- Right: List -->
-                <div class="glass-panel p-6 rounded-3xl col-span-1 lg:col-span-2 h-full flex flex-col">
-                    <h2 class="text-xl font-bold text-white mb-4">Content Library</h2>
-                    <div class="overflow-y-auto custom-scrollbar flex-1 pr-2 space-y-3">
-                        <div v-for="(item, key) in items" :key="key" class="flex gap-4 p-3 bg-black/40 border border-white/5 rounded-2xl items-center hover:border-white/20 transition-colors">
-                            <img :src="item.posterUrl" class="w-16 h-24 object-cover rounded-xl shadow-lg">
-                            <div class="flex-1">
-                                <div class="flex items-center gap-2">
-                                    <h3 class="font-bold text-white text-lg">{{ item.title }}</h3>
-                                    <span v-if="item.isHero" class="bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded tracking-widest">HERO</span>
-                                </div>
-                                <p class="text-xs text-slate-400">{{ item.year }} • {{ item.category }} • <span class="uppercase text-purple-400 font-bold">{{ item.type }}</span></p>
-                                <p class="text-xs text-slate-500 mt-1 line-clamp-1">{{ item.description }}</p>
-                            </div>
-                            <button @click="deleteContent(key)" class="w-10 h-10 flex items-center justify-center rounded-full bg-red-500/10 text-red-500 hover:bg-red-500/20 active:scale-95 transition-all">
-                                <span class="material-symbols-outlined text-[20px]">delete</span>
+                        <!-- Type Switcher Pill Button -->
+                        <div class="flex p-1 bg-black/50 rounded-xl border border-white/5">
+                            <button @click="form.type = 'movie'" :class="{'bg-brand-orange text-white shadow-md font-bold': form.type === 'movie', 'text-slate-400 hover:text-white': form.type !== 'movie'}" class="px-4 py-2 rounded-lg text-xs tracking-wider uppercase transition-all duration-300">
+                                Movie
+                            </button>
+                            <button @click="form.type = 'series'" :class="{'bg-brand-orange text-white shadow-md font-bold': form.type === 'series', 'text-slate-400 hover:text-white': form.type !== 'series'}" class="px-4 py-2 rounded-lg text-xs tracking-wider uppercase transition-all duration-300">
+                                Series
                             </button>
                         </div>
-                        <div v-if="Object.keys(items).length === 0" class="text-center py-10 text-slate-500">
-                            No content found.
+                    </div>
+
+                    <!-- Fields Row -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Content Title <span class="text-brand-orange">*</span></label>
+                            <input type="text" v-model="form.title" placeholder="e.g. Inception, Breaking Bad" class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none" required>
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Description / Synopsis</label>
+                            <textarea v-model="form.description" rows="3" placeholder="Write a compelling overview of this story..." class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Release Year</label>
+                            <input type="number" v-model="form.year" placeholder="e.g. 2026" class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Language</label>
+                            <select v-model="form.language" class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none bg-black/60">
+                                <option value="">None (Optional)</option>
+                                <option v-for="lang in availableLanguages" :key="lang" :value="lang">{{ lang }}</option>
+                                <option value="__custom__">+ Create New Language...</option>
+                            </select>
+                            <div v-if="form.language === '__custom__'" class="mt-2 flex gap-2 animate-fadeIn">
+                                <input type="text" v-model="newLanguageInput" placeholder="New language name..." class="flex-1 glass-input text-white text-xs rounded-xl px-3 py-2 focus:outline-none">
+                                <button @click.prevent="addCustomLanguage" class="bg-brand-orange text-white text-xs font-bold px-3 rounded-xl hover:bg-brand-orangeDark transition-all">Add</button>
+                                <button @click.prevent="form.language = ''" class="bg-white/5 text-slate-400 text-xs px-3 rounded-xl hover:bg-white/10 transition-all">Cancel</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Categories (Comma separated) <span class="text-brand-orange">*</span></label>
+                            <input type="text" v-model="form.category" placeholder="e.g. Sci-Fi, Action, Thriller" class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none" required>
+                        </div>
+
+                        <!-- Interactive Category Quick Tags -->
+                        <div class="sm:col-span-2">
+                            <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Quick Toggles</label>
+                            <div class="flex flex-wrap gap-1.5">
+                                <button v-for="cat in quickCategories" :key="cat" @click.prevent="toggleCategory(cat)" 
+                                        :class="{'bg-brand-orange border-brand-orange text-white shadow-sm shadow-brand-orange/15': hasCategory(cat), 'bg-white/5 border-white/5 hover:bg-white/10 text-slate-400 hover:text-white': !hasCategory(cat)}"
+                                        class="text-xs px-3 py-1.5 border rounded-lg font-medium transition-all duration-200">
+                                    {{ cat }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="sm:col-span-2 border-t border-white/5 pt-4 mt-2">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Poster Image Source</label>
+                            <div class="space-y-3">
+                                <input type="text" v-model="form.posterUrl" placeholder="Direct URL (https://...)" class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none">
+                                
+                                <div class="flex items-center justify-between p-3.5 rounded-xl bg-black/40 border border-white/5">
+                                    <div class="flex flex-col gap-1">
+                                        <span class="text-xs font-bold text-white">Direct Image Upload</span>
+                                        <span class="text-[10px] text-slate-400">Uses ImgBB (Settings Key Required)</span>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <input type="file" @change="uploadImage" accept="image/*" class="hidden" id="fileUpload">
+                                        <label for="fileUpload" class="cursor-pointer bg-white/5 hover:bg-white/10 text-white font-semibold text-xs px-4 py-2 rounded-xl transition-all border border-white/5 flex items-center gap-1.5">
+                                            <span class="material-symbols-outlined text-base">cloud_upload</span>
+                                            <span>Browse Files</span>
+                                        </label>
+                                        <span v-if="uploadingImage" class="text-xs text-brand-orange font-bold flex items-center gap-1 animate-pulse">
+                                            <span class="material-symbols-outlined animate-spin text-sm">sync</span>
+                                            <span>Uploading...</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Movie Specific URL input -->
+                        <div v-if="form.type === 'movie'" class="sm:col-span-2 border-t border-white/5 pt-4 space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">Video Stream URL</label>
+                                <input type="text" v-model="form.videoUrl" placeholder="Stream link (e.g. HLS, MP4 or YouTube)" class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none">
+                            </div>
+
+                            <!-- Movie Audio Tracks Manager (Optional) -->
+                            <div class="bg-black/30 p-4 rounded-2xl border border-white/5 space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <div class="flex flex-col">
+                                        <span class="text-xs font-bold text-white">Audio Tracks (Optional)</span>
+                                        <span class="text-[10px] text-slate-400">Add separate direct links for multiple languages</span>
+                                    </div>
+                                    <button @click.prevent="addMovieAudioTrack" class="bg-brand-orangeGlow hover:bg-brand-orange/20 text-brand-orange border border-brand-orange/20 font-bold text-[10px] px-3 py-1.5 rounded-xl flex items-center gap-1 transition-all">
+                                        <span class="material-symbols-outlined text-sm">add</span>
+                                        <span>Add Track</span>
+                                    </button>
+                                </div>
+                                <div v-if="!form.audioTracks || form.audioTracks.length === 0" class="text-center py-4 text-slate-500 border border-dashed border-white/5 rounded-xl text-[10px]">
+                                    No custom audio tracks added yet. (Optional)
+                                </div>
+                                <div v-for="(track, tIdx) in form.audioTracks" :key="tIdx" class="flex gap-2 items-center bg-black/40 p-2 rounded-xl border border-white/5 animate-fadeIn">
+                                    <select v-model="track.language" class="bg-black/60 text-white text-xs rounded-lg px-2 py-2.5 focus:outline-none border border-white/10 w-28">
+                                        <option value="English">English</option>
+                                        <option value="Bengali">Bengali</option>
+                                        <option value="Hindi">Hindi</option>
+                                    </select>
+                                    <input v-model="track.audioUrl" placeholder="Direct Audio URL (.mp3, .m4a, etc.)" class="flex-1 bg-black/40 text-white text-xs rounded-lg px-3 py-2 focus:outline-none border border-white/10">
+                                    <button @click.prevent="removeMovieAudioTrack(tIdx)" class="text-rose-400 hover:text-rose-300 p-1.5 hover:bg-rose-500/10 rounded-lg transition-all">
+                                        <span class="material-symbols-outlined text-lg">delete</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Series Specific Season & Episode Manager -->
+                    <div v-if="form.type === 'series'" class="border-t border-white/5 pt-5 space-y-4">
+                        <div class="flex justify-between items-center bg-black/30 p-3 rounded-2xl border border-white/5">
+                            <div>
+                                <h3 class="text-sm font-bold text-white">Seasons & Episodes Manager</h3>
+                                <p class="text-[10px] text-slate-400">Add seasons and populate individual episodes below</p>
+                            </div>
+                            <button @click.prevent="addSeason" class="bg-brand-orangeGlow hover:bg-brand-orange/20 text-brand-orange border border-brand-orange/20 font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all">
+                                <span class="material-symbols-outlined text-sm">add</span>
+                                <span>Add Season</span>
+                            </button>
+                        </div>
+                        
+                        <div v-if="form.seasons.length === 0" class="text-center py-6 text-slate-500 border-2 border-dashed border-white/5 rounded-2xl text-xs font-medium">
+                            No seasons created yet. Click "+ Add Season" above to start building the series schedule.
+                        </div>
+
+                        <div v-for="(season, sIdx) in form.seasons" :key="sIdx" class="bg-black/40 p-4 rounded-2xl border border-white/5 space-y-4 animate-fadeIn">
+                            <div class="flex gap-3 items-center justify-between border-b border-white/5 pb-3">
+                                <div class="flex items-center gap-2 flex-1">
+                                    <span class="text-xs font-bold text-brand-orange font-mono bg-brand-orangeGlow px-2.5 py-1 rounded-lg">S{{ sIdx + 1 }}</span>
+                                    <input v-model="season.title" placeholder="Season Title (e.g. Season 1)" class="flex-1 bg-transparent text-white font-bold text-sm focus:outline-none">
+                                </div>
+                                <button @click.prevent="removeSeason(sIdx)" class="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 p-1.5 rounded-lg transition-all flex items-center justify-center">
+                                    <span class="material-symbols-outlined text-lg">delete</span>
+                                </button>
+                            </div>
+                            
+                            <div class="space-y-3 pl-4 border-l-2 border-brand-orange/30">
+                                <div v-for="(episode, eIdx) in season.episodes" :key="eIdx" class="bg-white/5 p-3.5 rounded-xl border border-white/5 space-y-3 animate-fadeIn">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-xs font-bold text-slate-300">Episode {{ eIdx + 1 }} Details</span>
+                                        <button @click.prevent="removeEpisode(sIdx, eIdx)" class="text-rose-400 hover:text-rose-300 text-xs font-semibold flex items-center gap-1 hover:underline">
+                                            <span class="material-symbols-outlined text-sm">remove_circle</span>
+                                            <span>Remove</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <input v-model="episode.title" placeholder="Episode Title (e.g. Episode 1: Pilot)" class="w-full bg-black/40 text-white text-xs rounded-xl p-3 border border-white/5 focus:border-brand-orange focus:outline-none">
+                                        <input v-model="episode.videoUrl" placeholder="Video Stream URL" class="w-full bg-black/40 text-white text-xs rounded-xl p-3 border border-white/5 focus:border-brand-orange focus:outline-none">
+                                    </div>
+
+                                    <!-- Episode Audio Tracks (Optional) -->
+                                    <div class="bg-black/20 p-3 rounded-xl border border-white/5 space-y-2 mt-2">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-[10px] font-bold text-slate-300">Episode Audio Tracks (Optional)</span>
+                                            <button @click.prevent="addEpisodeAudioTrack(sIdx, eIdx)" class="text-[10px] text-brand-orange hover:underline font-extrabold">+ Add Audio Track</button>
+                                        </div>
+                                        <div v-if="!episode.audioTracks || episode.audioTracks.length === 0" class="text-center py-2 text-slate-500 border border-dashed border-white/5 rounded-lg text-[9px]">
+                                            No separate audio tracks configured for this episode.
+                                        </div>
+                                        <div v-for="(track, tIdx) in (episode.audioTracks || [])" :key="tIdx" class="flex gap-2 items-center bg-black/30 p-1.5 rounded-lg border border-white/5 animate-fadeIn">
+                                            <select v-model="track.language" class="bg-black/60 text-white text-[10px] rounded px-1.5 py-1.5 focus:outline-none border border-white/10 w-24">
+                                                <option value="English">English</option>
+                                                <option value="Bengali">Bengali</option>
+                                                <option value="Hindi">Hindi</option>
+                                            </select>
+                                            <input v-model="track.audioUrl" placeholder="Direct Audio URL" class="flex-1 bg-black/40 text-white text-[10px] rounded px-2 py-1.5 focus:outline-none border border-white/10">
+                                            <button @click.prevent="removeEpisodeAudioTrack(sIdx, eIdx, tIdx)" class="text-rose-400 hover:text-rose-300 p-1 hover:bg-rose-500/10 rounded">
+                                                <span class="material-symbols-outlined text-base">delete</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button @click.prevent="addEpisode(sIdx)" class="text-xs text-brand-orange hover:text-orange-400 font-bold flex items-center gap-1.5 hover:underline bg-brand-orangeGlow px-3 py-1.5 rounded-xl border border-brand-orange/10">
+                                    <span class="material-symbols-outlined text-sm">add</span>
+                                    <span>Add Episode {{ season.episodes.length + 1 }}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hero Banner Flag Toggle -->
+                    <div class="flex items-center justify-between p-4 rounded-2xl bg-black/40 border border-white/5">
+                        <div class="flex flex-col gap-0.5">
+                            <span class="text-sm font-bold text-white">Set as Hero Banner</span>
+                            <span class="text-xs text-slate-400">Display this content on the front page billboard header</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" v-model="form.isHero" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-orange"></div>
+                        </label>
+                    </div>
+
+                    <!-- Form Action CTA -->
+                    <div class="flex gap-4 border-t border-white/5 pt-6">
+                        <button v-if="editingKey" @click="cancelEdit" class="flex-1 bg-white/5 border border-white/10 text-white font-semibold py-3.5 px-6 rounded-2xl hover:bg-white/10 transition-all flex items-center justify-center gap-2">
+                            <span>Cancel</span>
+                        </button>
+                        <button @click="saveContent" class="flex-[2] bg-gradient-to-r from-brand-orange to-orange-500 hover:from-brand-orangeDark hover:to-orange-600 text-white font-bold py-3.5 px-6 rounded-2xl shadow-xl shadow-brand-orangeGlow hover:shadow-brand-orange/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined">{{ editingKey ? 'save' : 'publish' }}</span>
+                            <span>{{ editingKey ? 'Update Database Entry' : 'Save to Live Database' }}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preview Panel / Helper Tips (Col-Span 4) -->
+                <div class="lg:col-span-4 space-y-6">
+                    <!-- Live Live-Preview Card -->
+                    <div class="glass-panel p-5 rounded-3xl relative overflow-hidden flex flex-col shadow-2xl">
+                        <div class="absolute top-3 right-3 bg-brand-orange text-white text-[9px] font-black px-2 py-0.5 rounded tracking-widest uppercase">
+                            Interactive Preview
+                        </div>
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Metadata Preview</h3>
+                        
+                        <!-- Mini Card Poster -->
+                        <div class="relative aspect-[16/9] w-full rounded-2xl bg-black/60 overflow-hidden mb-4 border border-white/5 flex items-center justify-center">
+                            <img :src="form.posterUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600'" class="absolute inset-0 w-full h-full object-cover opacity-60 transition-all duration-300">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                            
+                            <div v-if="!form.posterUrl" class="relative z-10 flex flex-col items-center gap-1 p-4 text-center">
+                                <span class="material-symbols-outlined text-slate-500 text-3xl">image</span>
+                                <span class="text-xs text-slate-400 font-semibold">Awaiting valid poster URL</span>
+                            </div>
+                            
+                            <!-- Badges -->
+                            <div class="absolute bottom-3 left-3 right-3 flex flex-col gap-1">
+                                <div class="flex flex-wrap gap-1.5 items-center">
+                                    <span class="bg-brand-orange text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase font-mono tracking-wider">{{ form.type }}</span>
+                                    <span v-if="form.isHero" class="bg-purple-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase font-mono tracking-wider">HERO</span>
+                                    <span v-if="form.language" class="bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase font-mono tracking-wider">{{ form.language }}</span>
+                                    <span v-if="form.year" class="bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded font-mono">{{ form.year }}</span>
+                                </div>
+                                <h4 class="font-extrabold text-sm text-white line-clamp-1 mt-0.5">{{ form.title || 'Untitled Movie' }}</h4>
+                            </div>
+                        </div>
+
+                        <!-- Card text metadata -->
+                        <div class="space-y-3.5 text-xs">
+                            <div class="flex border-b border-white/5 pb-2.5">
+                                <span class="text-slate-400 w-24 flex-shrink-0">Language:</span>
+                                <span class="text-white font-semibold">{{ form.language || 'None Selected' }}</span>
+                            </div>
+                            <div class="flex border-b border-white/5 pb-2.5">
+                                <span class="text-slate-400 w-24 flex-shrink-0">Categories:</span>
+                                <span class="text-white font-semibold line-clamp-1">{{ form.category || 'N/A' }}</span>
+                            </div>
+                            <div class="flex border-b border-white/5 pb-2.5">
+                                <span class="text-slate-400 w-24 flex-shrink-0">Synopsis:</span>
+                                <span class="text-slate-300 line-clamp-2 leading-relaxed">{{ form.description || 'No description provided.' }}</span>
+                            </div>
+                            <div v-if="form.type === 'movie'" class="flex pb-1">
+                                <span class="text-slate-400 w-24 flex-shrink-0">Video URL:</span>
+                                <span class="text-brand-orange font-mono truncate font-semibold flex-1">{{ form.videoUrl || 'Not configured' }}</span>
+                            </div>
+                            <div v-else class="flex pb-1">
+                                <span class="text-slate-400 w-24 flex-shrink-0">Schedule:</span>
+                                <span class="text-brand-orange font-semibold">{{ form.seasons.length }} Seasons • {{ totalEpisodesCount }} Episodes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Developer Tips Panel -->
+                    <div class="glass-panel p-5 rounded-3xl space-y-3.5 shadow-xl text-xs">
+                        <h4 class="font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-orange-400 text-sm">info</span>
+                            <span>Admin Quick Tips</span>
+                        </h4>
+                        <ul class="space-y-2.5 text-slate-300 leading-relaxed">
+                            <li class="flex gap-2">
+                                <span class="text-brand-orange font-bold font-mono">1.</span>
+                                <span><strong>Realtime Database Sync:</strong> Changes you submit are instantaneous; users see modified movies immediately.</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-brand-orange font-bold font-mono">2.</span>
+                                <span><strong>Video Streams:</strong> Ensure your video stream URLs are direct (HLS/m3u8, MP4) for optimal Android ExoPlayer decoding.</span>
+                            </li>
+                            <li class="flex gap-2">
+                                <span class="text-brand-orange font-bold font-mono">3.</span>
+                                <span><strong>Hero Banner:</strong> You should ideally have exactly one item marked as "Hero" to avoid front-page layout conflicts.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: CONTENT LIBRARY / MANAGE MOVIES -->
+            <section v-if="currentTab === 'library'" class="space-y-6 animate-fadeIn">
+                <!-- Search and Stats Row -->
+                <div class="flex flex-col md:flex-row gap-4 items-center justify-between glass-panel p-5 rounded-3xl shadow-xl">
+                    <div class="w-full md:w-96 relative">
+                        <span class="material-symbols-outlined absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400">search</span>
+                        <input type="text" v-model="searchQuery" placeholder="Search title, category, type..." class="w-full bg-black/40 text-white rounded-xl pl-11 pr-4 py-3 border border-white/5 focus:border-brand-orange focus:outline-none text-sm">
+                    </div>
+                    
+                    <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                        <div class="text-xs text-slate-400 font-semibold bg-black/30 px-4 py-2.5 rounded-xl border border-white/5 flex items-center gap-2">
+                            <span>Count:</span>
+                            <span class="text-white font-mono font-bold text-sm">{{ filteredItemsList.length }} / {{ Object.keys(items).length }} Entries</span>
+                        </div>
+                        
+                        <div class="flex gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
+                            <button @click="libraryFilterType = 'all'" :class="{'bg-brand-orange text-white text-xs font-bold': libraryFilterType === 'all', 'text-slate-400': libraryFilterType !== 'all'}" class="px-3.5 py-1.5 rounded-lg text-xs transition-all">
+                                All
+                            </button>
+                            <button @click="libraryFilterType = 'movie'" :class="{'bg-brand-orange text-white text-xs font-bold': libraryFilterType === 'movie', 'text-slate-400': libraryFilterType !== 'movie'}" class="px-3.5 py-1.5 rounded-lg text-xs transition-all">
+                                Movies
+                            </button>
+                            <button @click="libraryFilterType = 'series'" :class="{'bg-brand-orange text-white text-xs font-bold': libraryFilterType === 'series', 'text-slate-400': libraryFilterType !== 'series'}" class="px-3.5 py-1.5 rounded-lg text-xs transition-all">
+                                Series
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
+
+                <!-- Empty State -->
+                <div v-if="filteredItemsList.length === 0" class="glass-panel rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4 animate-fadeIn">
+                    <div class="w-16 h-16 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-slate-500 shadow-inner">
+                        <span class="material-symbols-outlined text-4xl">search_off</span>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">No Database Entries Found</h3>
+                        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">No movies or TV series match your search string. Try adjusting search terms or add a new title.</p>
+                    </div>
+                    <button @click="switchTab('add')" class="bg-brand-orange text-white hover:bg-brand-orangeDark font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg shadow-brand-orangeGlow transition-all">
+                        Create New Entry
+                    </button>
+                </div>
+
+                <!-- Grid List of Contents -->
+                <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <div v-for="item in filteredItemsList" :key="item.key" class="glass-panel rounded-2xl overflow-hidden group hover:border-brand-orange/30 transition-all duration-300 flex flex-col justify-between shadow-lg">
+                        
+                        <!-- Top details and Poster -->
+                        <div class="p-4 flex gap-4">
+                            <!-- Rounded Poster Image -->
+                            <div class="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-black/60 border border-white/5 relative">
+                                <img :src="item.posterUrl || 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=300'" class="w-full h-full object-cover">
+                                <div class="absolute inset-0 bg-black/10"></div>
+                            </div>
+                            
+                            <!-- Texts -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex flex-wrap gap-1 items-center mb-1">
+                                    <span :class="{'bg-indigo-500/15 text-indigo-400 border-indigo-500/10': item.type === 'movie', 'bg-purple-500/15 text-purple-400 border-purple-500/10': item.type === 'series'}" class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded border">
+                                        {{ item.type }}
+                                    </span>
+                                    <span v-if="item.isHero" class="bg-brand-orange/15 border border-brand-orange/15 text-brand-orange text-[9px] font-black uppercase px-1.5 py-0.5 rounded">
+                                        HERO
+                                    </span>
+                                    <span v-if="item.language" class="bg-emerald-500/15 border border-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase px-1.5 py-0.5 rounded">
+                                        {{ item.language }}
+                                    </span>
+                                    <span v-if="item.year" class="bg-black/40 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                        {{ item.year }}
+                                    </span>
+                                </div>
+                                
+                                <h3 class="font-extrabold text-sm text-white group-hover:text-brand-orange transition-colors truncate" :title="item.title">
+                                    {{ item.title }}
+                                </h3>
+                                
+                                <p class="text-[10px] text-slate-400 font-medium truncate mt-1">
+                                    {{ item.category }}
+                                </p>
+                                
+                                <p class="text-[11px] text-slate-500 mt-2 line-clamp-2 leading-relaxed">
+                                    {{ item.description || 'No description provided.' }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Controls -->
+                        <div class="px-4 py-3 bg-black/35 border-t border-white/5 flex items-center justify-between">
+                            <span v-if="item.type === 'movie'" class="text-[10px] text-slate-500 font-mono truncate max-w-[150px]">
+                                {{ item.videoUrl ? 'Stream Configured' : 'No Stream URL' }}
+                            </span>
+                            <span v-else class="text-[10px] text-slate-500 font-bold">
+                                {{ item.seasons ? item.seasons.length : 0 }} Seasons
+                            </span>
+
+                            <div class="flex items-center gap-2">
+                                <button @click="editContent(item.key, item)" class="flex items-center justify-center p-2 rounded-xl bg-blue-500/10 border border-blue-500/10 hover:border-blue-500/30 text-blue-400 hover:bg-blue-500/20 active:scale-95 transition-all" title="Edit Metadata">
+                                    <span class="material-symbols-outlined text-lg">edit</span>
+                                </button>
+                                <button @click="deleteContent(item.key)" class="flex items-center justify-center p-2 rounded-xl bg-rose-500/10 border border-rose-500/10 hover:border-rose-500/30 text-rose-500 hover:bg-rose-500/20 active:scale-95 transition-all" title="Delete Entry">
+                                    <span class="material-symbols-outlined text-lg">delete</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: SETTINGS -->
+            <section v-if="currentTab === 'settings'" class="max-w-2xl mx-auto space-y-6 animate-fadeIn">
+                <!-- ImgBB Configuration -->
+                <div class="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 shadow-2xl">
+                    <div class="flex items-center gap-3 border-b border-white/5 pb-4">
+                        <div class="p-2 bg-brand-orangeGlow border border-brand-orange/20 text-brand-orange rounded-xl">
+                            <span class="material-symbols-outlined text-2xl font-bold">image_search</span>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-extrabold text-white">ImgBB API Configurations</h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Enables fast, drag-and-drop poster file uploads</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">ImgBB Private API Key</label>
+                            <input type="text" v-model="imgbbApiKey" placeholder="Paste your API key here..." class="w-full glass-input text-white text-sm rounded-xl px-4 py-3.5 focus:outline-none font-mono">
+                            <p class="text-[11px] text-slate-400 mt-2.5 leading-relaxed">
+                                Required if you want to upload graphic assets directly from your device storage instead of manually hosting and copy-pasting link strings. Generate yours instantly at 
+                                <a href="https://api.imgbb.com/" target="_blank" class="text-brand-orange hover:underline font-semibold">api.imgbb.com</a>.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-white/5 pt-5 flex justify-end">
+                        <button @click="saveSettings" class="bg-brand-orange hover:bg-brand-orangeDark text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-lg shadow-brand-orangeGlow active:scale-95 transition-all flex items-center gap-2">
+                            <span class="material-symbols-outlined">save</span>
+                            <span>Save Key Securely</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Database Info Dashboard Stats -->
+                <div class="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 shadow-2xl">
+                    <h3 class="text-md font-extrabold text-white uppercase tracking-wider border-b border-white/5 pb-3 flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-orange-400 text-lg">dashboard</span>
+                        <span>Console Dashboard Metrics</span>
+                    </h3>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-black/30 p-4 rounded-2xl border border-white/5 flex flex-col gap-1">
+                            <span class="text-slate-400 text-xs font-semibold">Total Movies</span>
+                            <span class="text-2xl font-extrabold text-white font-mono">{{ countMovies }}</span>
+                        </div>
+                        <div class="bg-black/30 p-4 rounded-2xl border border-white/5 flex flex-col gap-1">
+                            <span class="text-slate-400 text-xs font-semibold">Total Series</span>
+                            <span class="text-2xl font-extrabold text-white font-mono">{{ countSeries }}</span>
+                        </div>
+                        <div class="bg-black/30 p-4 rounded-2xl border border-white/5 flex flex-col gap-1">
+                            <span class="text-slate-400 text-xs font-semibold">Hero Featured Content</span>
+                            <span class="text-sm font-bold text-brand-orange truncate">{{ heroBannerTitle }}</span>
+                        </div>
+                        <div class="bg-black/30 p-4 rounded-2xl border border-white/5 flex flex-col gap-1">
+                            <span class="text-slate-400 text-xs font-semibold">Uploader Status</span>
+                            <span :class="imgbbApiKey ? 'text-emerald-400' : 'text-slate-400'" class="text-sm font-bold truncate">
+                                {{ imgbbApiKey ? 'Fully Active' : 'URL Paste Only' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
 
-        <main class="flex-1 overflow-hidden p-6 relative z-10 flex flex-col items-center justify-center" v-if="currentTab === 'settings'">
-            <div class="glass-panel p-8 rounded-3xl w-full max-w-lg space-y-6">
-                <h2 class="text-2xl font-bold text-white text-center">Settings</h2>
-                <div>
-                    <label class="block text-sm font-bold text-slate-400 mb-2">ImgBB API Key (For File Uploads)</label>
-                    <input type="text" v-model="imgbbApiKey" class="w-full bg-black/40 text-white rounded-xl p-4 border border-white/10 focus:border-orange-500 focus:outline-none" placeholder="Enter API Key">
-                    <p class="text-xs text-slate-500 mt-2">Required only if you want to upload files directly from this admin panel. You can get it from <a href="https://api.imgbb.com/" target="_blank" class="text-orange-400 hover:underline">api.imgbb.com</a>.</p>
-                </div>
-                <button @click="saveSettings" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl hover:bg-orange-400 transition-colors active:scale-95">Save Settings</button>
-            </div>
-        </main>
+        <!-- Pinned Bottom Navigation Menu for Mobile Devices -->
+        <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0a0a0f]/95 backdrop-blur-xl border-t border-white/10 flex justify-around py-3 px-2 shadow-2xl shadow-black">
+            <!-- Tab 1 Button -->
+            <button @click="switchTab('add')" :class="currentTab === 'add' ? 'text-brand-orange' : 'text-slate-400'" class="flex-1 flex flex-col items-center justify-center py-1 transition-all duration-300">
+                <span class="material-symbols-outlined text-2xl" :class="{'filled': currentTab === 'add'}">add_circle</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider mt-0.5">Add</span>
+            </button>
+            
+            <!-- Tab 2 Button -->
+            <button @click="switchTab('library')" :class="currentTab === 'library' ? 'text-brand-orange' : 'text-slate-400'" class="flex-1 flex flex-col items-center justify-center py-1 transition-all duration-300 relative">
+                <span class="material-symbols-outlined text-2xl" :class="{'filled': currentTab === 'library'}">video_library</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider mt-0.5">Library</span>
+                <span v-if="Object.keys(items).length > 0" class="absolute top-1 right-[25%] bg-brand-orange text-white text-[8px] px-1.5 py-0.5 rounded-full font-extrabold font-mono leading-none shadow shadow-black">
+                    {{ Object.keys(items).length }}
+                </span>
+            </button>
+            
+            <!-- Tab 3 Button -->
+            <button @click="switchTab('settings')" :class="currentTab === 'settings' ? 'text-brand-orange' : 'text-slate-400'" class="flex-1 flex flex-col items-center justify-center py-1 transition-all duration-300">
+                <span class="material-symbols-outlined text-2xl" :class="{'filled': currentTab === 'settings'}">settings</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider mt-0.5">Settings</span>
+            </button>
+        </nav>
     </div>
 
+    <!-- JS Application Execution Script -->
     <script>
+        // Use exactly the production Realtime Database configurations from firebase
         const firebaseConfig = {
             apiKey: "AIzaSyABrZO7DXxT2MV54AfD6HSTsp_adTJE5v0",
             authDomain: "testing-31c44.firebaseapp.com",
@@ -180,19 +685,34 @@
             messagingSenderId: "485546521437",
             appId: "1:485546521437:web:5d74799008ab2269abaeb4"
         };
+        
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const contentRef = db.ref('content'); // Using 'content' node now
+        const contentRef = db.ref('content');
 
-        const { createApp, ref, onMounted, computed } = Vue;
+        const { createApp, ref, onMounted, computed, watch } = Vue;
 
         createApp({
             setup() {
-                const currentTab = ref('content');
+                // Persistent configurations & SPA tab tracking
+                const currentTab = ref(localStorage.getItem('admin_active_tab') || 'add');
                 const imgbbApiKey = ref(localStorage.getItem('imgbbApiKey') || '');
                 const items = ref({});
                 const uploadingImage = ref(false);
+                const editingKey = ref(null);
+                
+                // Advanced searching/filtering states
+                const searchQuery = ref('');
+                const libraryFilterType = ref('all');
 
+                // Quick pre-selected toggle tags
+                const quickCategories = ref([
+                    'Action', 'Adventure', 'Sci-Fi', 'Thriller', 
+                    'Comedy', 'Drama', 'Horror', 'Animation', 
+                    'Fantasy', 'Mystery', 'Romance'
+                ]);
+
+                // Factory reset template values
                 const defaultForm = () => ({
                     type: 'movie',
                     title: '',
@@ -202,19 +722,106 @@
                     posterUrl: '',
                     isHero: false,
                     videoUrl: '',
-                    seasons: []
+                    language: '',
+                    seasons: [],
+                    audioTracks: []
                 });
 
                 const form = ref(defaultForm());
 
-                const categories = computed(() => {
-                    const cats = new Set();
-                    Object.values(items.value).forEach(i => {
-                        if(i.category) cats.add(i.category);
-                    });
-                    return Array.from(cats);
+                const customLanguages = ref(JSON.parse(localStorage.getItem('custom_languages') || '[]'));
+                const availableLanguages = computed(() => {
+                    return ['Bengali', 'English', 'Hindi', ...customLanguages.value];
+                });
+                const newLanguageInput = ref('');
+
+                const addCustomLanguage = () => {
+                    const lang = newLanguageInput.value.trim();
+                    if (lang) {
+                        if (!availableLanguages.value.includes(lang)) {
+                            customLanguages.value.push(lang);
+                            localStorage.setItem('custom_languages', JSON.stringify(customLanguages.value));
+                        }
+                        form.value.language = lang;
+                        newLanguageInput.value = '';
+                    }
+                };
+
+                // Computed metrics / Statistics dashboards
+                const countMovies = computed(() => {
+                    return Object.values(items.value).filter(i => i.type === 'movie').length;
                 });
 
+                const countSeries = computed(() => {
+                    return Object.values(items.value).filter(i => i.type === 'series').length;
+                });
+
+                const heroBannerTitle = computed(() => {
+                    const hero = Object.values(items.value).find(i => i.isHero);
+                    return hero ? hero.title : 'None Selected';
+                });
+
+                const totalEpisodesCount = computed(() => {
+                    if (!form.value.seasons) return 0;
+                    return form.value.seasons.reduce((acc, season) => {
+                        return acc + (season.episodes ? season.episodes.length : 0);
+                    }, 0);
+                });
+
+                // Tab change logic that preserves viewport height scrolling
+                const switchTab = (tab) => {
+                    currentTab.value = tab;
+                    localStorage.setItem('admin_active_tab', tab);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+
+                // Fast categories listing toggle logic
+                const hasCategory = (cat) => {
+                    if (!form.value.category) return false;
+                    const currentCats = form.value.category.split(',').map(c => c.trim().toLowerCase());
+                    return currentCats.includes(cat.toLowerCase());
+                };
+                
+                const toggleCategory = (cat) => {
+                    let currentCats = form.value.category ? form.value.category.split(',').map(c => c.trim()).filter(c => c) : [];
+                    const index = currentCats.findIndex(c => c.toLowerCase() === cat.toLowerCase());
+                    if (index > -1) {
+                        currentCats.splice(index, 1);
+                    } else {
+                        currentCats.push(cat);
+                    }
+                    form.value.category = currentCats.join(', ');
+                };
+
+                // Search filtering logic mapping
+                const filteredItemsList = computed(() => {
+                    const list = Object.entries(items.value).map(([key, item]) => ({
+                        ...item,
+                        key
+                    }));
+
+                    // Sort by timestamp descending
+                    list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+                    return list.filter(item => {
+                        // Apply tab selection filters
+                        if (libraryFilterType.value !== 'all' && item.type !== libraryFilterType.value) {
+                            return false;
+                        }
+
+                        // Apply query matching filters
+                        if (!searchQuery.value) return true;
+                        const query = searchQuery.value.toLowerCase().trim();
+                        const titleMatch = item.title && item.title.toLowerCase().includes(query);
+                        const categoryMatch = item.category && item.category.toLowerCase().includes(query);
+                        const descMatch = item.description && item.description.toLowerCase().includes(query);
+                        const yearMatch = item.year && item.year.toString().includes(query);
+                        
+                        return titleMatch || categoryMatch || descMatch || yearMatch;
+                    });
+                });
+
+                // On load lifecycle hook
                 onMounted(() => {
                     contentRef.on('value', (snapshot) => {
                         items.value = snapshot.val() || {};
@@ -223,31 +830,70 @@
 
                 const saveSettings = () => {
                     localStorage.setItem('imgbbApiKey', imgbbApiKey.value);
-                    alert("Settings saved successfully!");
+                    alert("API configuration saved successfully!");
                 };
 
+                // Seasons & Episodes dynamic arrays builders
                 const addSeason = () => {
-                    form.value.seasons.push({ title: 'Season ' + (form.value.seasons.length + 1), episodes: [] });
+                    if (!form.value.seasons) form.value.seasons = [];
+                    form.value.seasons.push({ 
+                        title: 'Season ' + (form.value.seasons.length + 1), 
+                        episodes: [] 
+                    });
                 };
 
                 const removeSeason = (idx) => {
                     form.value.seasons.splice(idx, 1);
                 };
 
-                const addEpisode = (seasonIdx) => {
-                    form.value.seasons[seasonIdx].episodes.push({ title: '', videoUrl: '' });
+                 const addEpisode = (seasonIdx) => {
+                    if (!form.value.seasons[seasonIdx].episodes) {
+                        form.value.seasons[seasonIdx].episodes = [];
+                    }
+                    form.value.seasons[seasonIdx].episodes.push({ 
+                        title: 'Episode ' + (form.value.seasons[seasonIdx].episodes.length + 1), 
+                        videoUrl: '',
+                        audioTracks: []
+                    });
                 };
 
                 const removeEpisode = (seasonIdx, epIdx) => {
                     form.value.seasons[seasonIdx].episodes.splice(epIdx, 1);
                 };
 
+                const addMovieAudioTrack = () => {
+                    if (!form.value.audioTracks) {
+                        form.value.audioTracks = [];
+                    }
+                    form.value.audioTracks.push({ language: 'English', audioUrl: '' });
+                };
+
+                const removeMovieAudioTrack = (idx) => {
+                    form.value.audioTracks.splice(idx, 1);
+                };
+
+                const addEpisodeAudioTrack = (seasonIdx, epIdx) => {
+                    const ep = form.value.seasons[seasonIdx].episodes[epIdx];
+                    if (!ep.audioTracks) {
+                        ep.audioTracks = [];
+                    }
+                    if (!Array.isArray(ep.audioTracks)) {
+                        ep.audioTracks = [];
+                    }
+                    ep.audioTracks.push({ language: 'English', audioUrl: '' });
+                };
+
+                const removeEpisodeAudioTrack = (seasonIdx, epIdx, trackIdx) => {
+                    form.value.seasons[seasonIdx].episodes[epIdx].audioTracks.splice(trackIdx, 1);
+                };
+
+                // Core ImgBB upload implementation
                 const uploadImage = async (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
 
                     if (!imgbbApiKey.value) {
-                        alert("Please configure your ImgBB API Key in Settings first to upload files, or just paste a URL.");
+                        alert("Please configure your ImgBB API Key in Settings first to upload files, or just paste a direct URL link.");
                         document.getElementById('fileUpload').value = '';
                         return;
                     }
@@ -265,40 +911,98 @@
                         if (data.success) {
                             form.value.posterUrl = data.data.url;
                         } else {
-                            alert("Upload failed: " + data.error.message);
+                            alert("Uploader error: " + (data.error ? data.error.message : 'Unknown error'));
                         }
                     } catch (err) {
-                        alert("Error uploading image.");
+                        alert("Connection failed while uploading image.");
                         console.error(err);
                     } finally {
                         uploadingImage.value = false;
+                        document.getElementById('fileUpload').value = '';
                     }
                 };
 
+                // Core Database Writer Action
                 const saveContent = () => {
-                    if(!form.value.title || !form.value.category) {
-                        alert("Title and Category are required.");
+                    if (!form.value.title || !form.value.category) {
+                        alert("Title and Category are absolutely required fields.");
                         return;
                     }
                     
-                    const dataToSave = { ...form.value, timestamp: firebase.database.ServerValue.TIMESTAMP };
+                    const dataToSave = JSON.parse(JSON.stringify(form.value));
                     
-                    // Clean up data based on type
+                    // Cleanup conditional structures
                     if (dataToSave.type === 'movie') {
                         delete dataToSave.seasons;
                     } else if (dataToSave.type === 'series') {
                         delete dataToSave.videoUrl;
+                        // Build structured seasons object
+                        if (!dataToSave.seasons) {
+                            dataToSave.seasons = [];
+                        }
                     }
 
-                    contentRef.push(dataToSave).then(() => {
+                    // Enforce timestamp
+                    if (!editingKey.value) {
+                        dataToSave.timestamp = firebase.database.ServerValue.TIMESTAMP;
+                    } else {
+                        // Preserve previous timestamp if it existed
+                        const existingItem = items.value[editingKey.value];
+                        if (existingItem && existingItem.timestamp) {
+                            dataToSave.timestamp = existingItem.timestamp;
+                        }
+                    }
+
+                    // Write operation
+                    if (editingKey.value) {
+                        contentRef.child(editingKey.value).update(dataToSave)
+                            .then(() => {
+                                alert("Database entry updated successfully!");
+                                form.value = defaultForm();
+                                editingKey.value = null;
+                                switchTab('library');
+                            })
+                            .catch(err => alert("Failed to update database: " + err));
+                    } else {
+                        contentRef.push(dataToSave)
+                            .then(() => {
+                                alert("Content published successfully!");
+                                form.value = defaultForm();
+                                switchTab('library');
+                            })
+                            .catch(err => alert("Failed to publish content: " + err));
+                    }
+                };
+
+                // List state handlers
+                const editContent = (key, item) => {
+                    editingKey.value = key;
+                    // Deep copy to prevent live editing binding artifacts
+                    const itemCopy = JSON.parse(JSON.stringify(item));
+                    form.value = { 
+                        ...defaultForm(), 
+                        ...itemCopy 
+                    };
+                    switchTab('add');
+                };
+                
+                const cancelEdit = () => {
+                    if (confirm("Are you sure you want to cancel editing? Unsaved changes will be discarded.")) {
+                        editingKey.value = null;
                         form.value = defaultForm();
-                        document.getElementById('fileUpload').value = '';
-                    }).catch(err => alert("Error saving: " + err));
+                        switchTab('library');
+                    }
                 };
 
                 const deleteContent = (key) => {
-                    if (confirm("Are you sure you want to delete this content?")) {
-                        contentRef.child(key).remove();
+                    const item = items.value[key];
+                    const name = item ? item.title : 'this content';
+                    if (confirm(`Are you sure you want to permanently delete "${name}" from the database?`)) {
+                        contentRef.child(key).remove()
+                            .then(() => {
+                                alert("Content removed successfully!");
+                            })
+                            .catch(err => alert("Error deleting content: " + err));
                     }
                 };
 
@@ -307,15 +1011,36 @@
                     imgbbApiKey,
                     items,
                     form,
-                    categories,
+                    quickCategories,
+                    searchQuery,
+                    libraryFilterType,
                     uploadingImage,
+                    editingKey,
+                    countMovies,
+                    countSeries,
+                    heroBannerTitle,
+                    totalEpisodesCount,
+                    filteredItemsList,
+                    customLanguages,
+                    availableLanguages,
+                    newLanguageInput,
+                    addCustomLanguage,
+                    switchTab,
+                    hasCategory,
+                    toggleCategory,
                     saveSettings,
                     addSeason,
                     removeSeason,
                     addEpisode,
                     removeEpisode,
+                    addMovieAudioTrack,
+                    removeMovieAudioTrack,
+                    addEpisodeAudioTrack,
+                    removeEpisodeAudioTrack,
                     uploadImage,
                     saveContent,
+                    editContent,
+                    cancelEdit,
                     deleteContent
                 };
             }
